@@ -1,0 +1,44 @@
+name: Deploy Frontend to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+      
+      - name: Update API URL for production
+        run: |
+          # Replace the API_URL with the AWS Elastic Beanstalk production URL
+          # The format is typically http://[environment-name].[region].elasticbeanstalk.com
+          sed -i 's|const API_URL = .*|const API_URL = "http://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' script.js
+          sed -i 's|const API_URL = .*|const API_URL = "http://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' index.html
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: '.'
+          
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2

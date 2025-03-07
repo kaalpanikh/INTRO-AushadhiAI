@@ -1,0 +1,32 @@
+[
+  {
+    "Namespace": "aws:autoscaling:launchconfiguration",
+    "OptionName": "IamInstanceProfile",
+    "Value": "aws-elasticbeanstalk-ec2-role"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AZURE_VISION_ENDPOINT",
+    "Value": "https://your-vision-service.cognitiveservices.azure.com/"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "AZURE_VISION_KEY",
+    "Value": "your-vision-api-key"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "ALLOWED_ORIGINS",
+    "Value": "https://harryhome1.github.io,http://localhost:8006"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:environment",
+    "OptionName": "EnvironmentType",
+    "Value": "SingleInstance"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:environment",
+    "OptionName": "ServiceRole",
+    "Value": "aws-elasticbeanstalk-service-role"
+  }
+] 

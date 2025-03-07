@@ -1,0 +1,17 @@
+{
+  "Changes": [
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "api.yourdomain.com",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "aushadhi-production.us-east-1.elasticbeanstalk.com"
+          }
+        ]
+      }
+    }
+  ]
+} 

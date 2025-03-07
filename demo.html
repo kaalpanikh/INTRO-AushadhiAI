@@ -159,7 +159,10 @@
         .med-name {
             font-weight: 600;
             color: #2c3e50;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
         }
         
         .med-details {
@@ -168,7 +171,35 @@
         }
         
         .med-property {
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .med-property strong {
+            color: #2c3e50;
+            display: block;
+            margin-bottom: 2px;
+        }
+        
+        /* Confidence indicator styles */
+        .confidence-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .confidence-high {
+            background-color: #2ecc71;
+        }
+        
+        .confidence-medium {
+            background-color: #f39c12;
+        }
+        
+        .confidence-low {
+            background-color: #e74c3c;
         }
         
         .loader {
@@ -283,7 +314,7 @@
     
     <script>
         // Configuration
-        const API_URL = 'http://localhost:8001/api';
+        const API_URL = 'http://localhost:8007';
         const DEBUG_MODE = true;
         
         // DOM Elements
@@ -330,7 +361,7 @@
             try {
                 logDebug('Checking backend connection...');
                 
-                const response = await fetch(`${API_URL}/health`);
+                const response = await fetch(`${API_URL}/api/health`);
                 
                 if (response.ok) {
                     backendStatus.className = 'status-dot connected';
@@ -352,7 +383,7 @@
         async function checkAzureConnection() {
             try {
                 logDebug('Checking Azure Vision connection...');
-                const response = await fetch(`${API_URL}/check-azure`);
+                const response = await fetch(`${API_URL}/api/check-azure`);
                 const data = await response.json();
                 
                 if (data.status === 'success') {
@@ -438,7 +469,7 @@
                 formData.append('file', imageBlob, 'prescription.jpg');
                 
                 // Send to the backend
-                const response = await fetch(`${API_URL}/analyze`, {
+                const response = await fetch(`${API_URL}/api/analyze`, {
                     method: 'POST',
                     body: formData
                 });
@@ -477,14 +508,85 @@
                     const details = document.createElement('div');
                     details.className = 'med-details';
                     
-                    // Add medication properties
+                    // Format confidence score properly
+                    const confidenceValue = med.confidence 
+                        ? (med.confidence <= 1 ? `${Math.round(med.confidence * 100)}%` : `${Math.round(med.confidence)}%`)
+                        : 'Not specified';
+                    
+                    // Determine confidence level indicator
+                    let confidenceClass = 'confidence-medium';
+                    const confidenceNum = parseFloat(confidenceValue);
+                    if (!isNaN(confidenceNum)) {
+                        if (confidenceNum >= 80) {
+                            confidenceClass = 'confidence-high';
+                        } else if (confidenceNum < 50) {
+                            confidenceClass = 'confidence-low';
+                        }
+                    }
+                    
+                    // Add medication properties with proper fallbacks and formatting
                     const properties = [
-                        { label: 'Dosage', value: med.dosage },
-                        { label: 'Frequency', value: med.frequency },
-                        { label: 'Duration', value: med.duration },
-                        { label: 'Purpose', value: med.purpose }
+                        { label: 'Detected as', value: med.matched_text || 'Not specified' },
+                        { 
+                            label: 'Match Confidence', 
+                            value: `<span class="confidence-indicator ${confidenceClass}"></span>${confidenceValue}` 
+                        }
                     ];
                     
+                    // Format category/drug class with proper line breaks for readability
+                    if (med.drug_class && med.drug_class.length > 0) {
+                        const formattedClasses = Array.isArray(med.drug_class) 
+                            ? med.drug_class.join(', ') 
+                            : med.drug_class;
+                        properties.push({ 
+                            label: 'Category', 
+                            value: formattedClasses || med.category || 'Not available' 
+                        });
+                    }
+                    
+                    // Add description
+                    if (med.description) {
+                        properties.push({ 
+                            label: 'Description', 
+                            value: med.description || 'Not available' 
+                        });
+                    }
+                    
+                    // Process array fields consistently
+                    const arrayFields = [
+                        { key: 'side_effects', label: 'Side Effects' },
+                        { key: 'warnings', label: 'Warnings' },
+                        { key: 'interactions', label: 'Interactions' },
+                        { key: 'indications', label: 'Indications' }
+                    ];
+                    
+                    arrayFields.forEach(field => {
+                        if (med[field.key] && (
+                            (Array.isArray(med[field.key]) && med[field.key].length > 0) || 
+                            (typeof med[field.key] === 'string' && med[field.key].trim() !== '')
+                        )) {
+                            let fieldText = '';
+                            if (typeof med[field.key] === 'string') {
+                                fieldText = med[field.key];
+                            } else if (Array.isArray(med[field.key])) {
+                                fieldText = med[field.key].join(', ');
+                            }
+                            
+                            if (fieldText && fieldText.trim() !== '') {
+                                properties.push({ label: field.label, value: fieldText });
+                            }
+                        }
+                    });
+                    
+                    // Display detected dosage if available
+                    if (med.dosage_info || med.detected_dosage) {
+                        properties.push({ 
+                            label: 'Detected Dosage', 
+                            value: med.dosage_info || med.detected_dosage 
+                        });
+                    }
+                    
+                    // Add the properties to the details element
                     properties.forEach(prop => {
                         if (prop.value) {
                             const propElement = document.createElement('div');
@@ -498,8 +600,58 @@
                     card.appendChild(details);
                     medicationList.appendChild(card);
                 });
+                
+                // Add debug information if available
+                if (DEBUG_MODE && data.ocr_results) {
+                    logDebug('OCR Text Detected: ' + JSON.stringify(data.ocr_results), 'info');
+                }
             } else {
-                medicationList.innerHTML = '<p>No medications identified in the prescription.</p>';
+                // Create a more visually prominent "no medications found" message
+                const noMedsContainer = document.createElement('div');
+                noMedsContainer.className = 'no-medications-message';
+                noMedsContainer.innerHTML = `
+                    <div class="warning-icon">⚠️</div>
+                    <h3>No Medications Identified</h3>
+                    <p>We couldn't identify any medications in this image. This could be due to:</p>
+                    <ul>
+                        <li>The image quality is too low for text recognition</li>
+                        <li>The prescription format is not standard</li>
+                        <li>The image doesn't contain a prescription</li>
+                    </ul>
+                    <p>Try uploading a clearer image of a prescription.</p>
+                `;
+                medicationList.appendChild(noMedsContainer);
+                
+                // Add some CSS for this new element
+                const style = document.createElement('style');
+                style.textContent = `
+                    .no-medications-message {
+                        background-color: #fff8e1;
+                        border-left: 4px solid #ffc107;
+                        padding: 20px;
+                        border-radius: 8px;
+                        width: 100%;
+                        box-sizing: border-box;
+                        text-align: left;
+                    }
+                    .warning-icon {
+                        font-size: 28px;
+                        margin-bottom: 10px;
+                    }
+                    .no-medications-message h3 {
+                        color: #e65100;
+                        margin-top: 0;
+                    }
+                    .no-medications-message ul {
+                        margin-bottom: 15px;
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                if (DEBUG_MODE && data.ocr_results) {
+                    logDebug('OCR ran but no medications were identified. Text detected: ' + 
+                          JSON.stringify(data.ocr_results), 'warning');
+                }
             }
         }
         

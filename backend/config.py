@@ -20,3 +20,37 @@ RXNORM_API_BASE_URL = "https://rxnav.nlm.nih.gov/REST"
 DEBUG = True
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload size
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+import os
+from typing import List
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if it exists
+load_dotenv()
+
+# API Settings
+PORT = int(os.getenv("PORT", 8007))
+HOST = os.getenv("HOST", "0.0.0.0")
+
+# Azure Vision API
+AZURE_VISION_ENDPOINT = os.getenv("AZURE_VISION_ENDPOINT", "")
+AZURE_VISION_KEY = os.getenv("AZURE_VISION_KEY", "")
+
+# CORS Settings
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8006").split(",")
+
+# Application Settings
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+ENV = os.getenv("ENV", "development")
+
+def validate_config() -> List[str]:
+    """Validate that all required config variables are set"""
+    errors = []
+    
+    if not AZURE_VISION_ENDPOINT:
+        errors.append("AZURE_VISION_ENDPOINT must be set")
+    
+    if not AZURE_VISION_KEY:
+        errors.append("AZURE_VISION_KEY must be set")
+    
+    return errors

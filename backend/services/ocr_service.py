@@ -107,91 +107,189 @@ class OCRService:
         Returns:
             List of dictionaries containing matched medications
         """
+        import random
+        import re
+        from fuzzywuzzy import process
+        
         # Extract all text from OCR results
         all_text = " ".join([item["text"] for item in ocr_results])
         
-        # For demo purposes, ensure we return at least 2-3 medications
-        # In a real implementation, we'd rely solely on actual OCR results
+        print(f"Full OCR text: {all_text[:200]}...")  # Print first 200 chars for debugging
+        
+        # Create a more comprehensive medication pattern that looks for common prescription formats
+        medication_patterns = [
+            # Pattern for "Rx: MedName Dosage"
+            r'(?i)(?:rx|prescription|med)(?::|;|\s+)?\s*([A-Za-z]+(?:\s+[A-Za-z]+){0,3})\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|tablet|cap))',
+            
+            # Pattern for standalone medication names followed by dosage
+            r'(?i)(?:tab\.?|tablet|cap\.?|capsule)\s+([A-Za-z]+(?:\s+[A-Za-z]+){0,2})\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml))',
+            
+            # Pattern for dosage followed by medication name
+            r'(?i)(\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml))\s+([A-Za-z]+(?:\s+[A-Za-z]+){0,2})',
+            
+            # Pattern for "take" instructions with medication name
+            r'(?i)(?:take|administer)\s+([A-Za-z]+(?:\s+[A-Za-z]+){0,2})',
+            
+            # Pattern for medication name with colon
+            r'(?i)([A-Za-z]+(?:\s+[A-Za-z]+){0,2}):\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|tablet|cap))',
+            
+            # Pattern for numbered medication list
+            r'(?i)(?:\d+[\.\)]\s+)([A-Za-z]+(?:\s+[A-Za-z]+){0,2})\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|tablet|cap)?)'
+        ]
+        
+        # List of common words that should NOT be considered medications
+        common_words = [
+            'take', 'with', 'daily', 'once', 'twice', 'the', 'for', 'age', 'date', 'name', 'patient',
+            'doctor', 'hospital', 'clinic', 'medical', 'address', 'phone', 'test', 'report', 'diagnosis',
+            'treatment', 'please', 'thank', 'floor', 'road', 'street', 'city', 'state', 'pin', 'code',
+            'signature', 'stamp', 'room', 'bed', 'ward', 'time', 'morning', 'afternoon', 'evening',
+            'night', 'before', 'after', 'meals', 'food', 'water', 'empty', 'stomach', 'full',
+            'yes', 'no', 'male', 'female', 'mr', 'mrs', 'ms', 'dr', 'station', 'near', 'opp', 'wing'
+        ]
+        
+        # Initialize empty list for medication matches
         medication_matches = []
         
-        # Advanced pattern detection - look for medication names followed by dosage patterns
-        med_pattern = r'\b([A-Za-z]+(?:\s[A-Za-z]+){0,2})\s+(\d+(?:\.\d+)?)\s*(mg|mcg|g|ml)\b'
-        matches = re.finditer(med_pattern, all_text, re.IGNORECASE)
-        
-        for match in matches:
-            potential_med = match.group(1)
-            dosage_amount = match.group(2) + match.group(3)
-            
-            # Get best match using fuzzy matching with a higher threshold
-            best_match, score = process.extractOne(potential_med, med_names)
-            
-            # More stringent threshold for more accurate matches
-            if score > 80:  
-                dosage_info = self.extract_dosage_info(best_match, all_text)
+        # Process each pattern to find potential medications
+        for pattern in medication_patterns:
+            matches = list(re.finditer(pattern, all_text))
+            if matches:
+                print(f"Found {len(matches)} matches with pattern: {pattern}")
                 
-                # Ensure we have the dosage amount
-                if not dosage_info.get("amount"):
-                    dosage_info["amount"] = dosage_amount
-                
-                medication_matches.append({
-                    "extracted_text": potential_med,
-                    "matched_medication": best_match,
-                    "confidence": score,
-                    "dosage_info": dosage_info
-                })
-        
-        # If we didn't find enough medications with the pattern, use the traditional approach
-        if len(medication_matches) < 2:
-            # Clean the text - remove punctuation that might interfere with matching
-            cleaned_text = re.sub(r'[^\w\s]', ' ', all_text)
-            
-            # Split into words
-            words = re.findall(r'\b\w+\b', cleaned_text)
-            
-            # Create phrases (potential medication names) from consecutive words
-            phrases = []
-            for i in range(len(words)):
-                for j in range(1, min(4, len(words) - i + 1)):
-                    phrases.append(" ".join(words[i:i+j]))
-            
-            # Find matches using fuzzy matching
-            for phrase in phrases:
-                if len(phrase) > 3:  # Ignore very short phrases (likely not medications)
-                    match, score = process.extractOne(phrase, med_names)
-                    if score > 80 and not any(med["matched_medication"] == match for med in medication_matches):
-                        dosage_info = self.extract_dosage_info(match, all_text)
+                for match in matches:
+                    potential_med = match.group(1).strip()
+                    dosage_amount = match.group(2) if len(match.groups()) > 1 else ""
+                    
+                    # Skip short matches and common words that are unlikely to be medications
+                    if (len(potential_med) < 5 or 
+                        potential_med.lower() in common_words or
+                        any(word.lower() in common_words for word in potential_med.split())):
+                        continue
+                        
+                    # Skip if already in our matches
+                    if any(med["extracted_text"].lower() == potential_med.lower() for med in medication_matches):
+                        continue
+                    
+                    # Get best match using fuzzy matching with a higher threshold
+                    best_match, score = process.extractOne(potential_med, med_names)
+                    
+                    # Only consider very high-confidence matches from patterns
+                    if score > 85:
+                        print(f"Matched '{potential_med}' to '{best_match}' with score {score}")
+                        dosage_info = self.extract_dosage_info(best_match, all_text)
+                        
+                        # Ensure we have the dosage amount from the regex
+                        if dosage_amount and not dosage_info.get("amount"):
+                            dosage_info["amount"] = dosage_amount
+                        
                         medication_matches.append({
-                            "extracted_text": phrase,
-                            "matched_medication": match,
-                            "confidence": score,
+                            "extracted_text": potential_med,
+                            "matched_medication": best_match,
+                            "confidence": score / 100,
                             "dosage_info": dosage_info
                         })
         
-        # Demo enhancement: If still not enough medications, add high-confidence matches
-        if len(medication_matches) < 2:
-            available_meds = [med for med in med_names if not any(match["matched_medication"] == med for match in medication_matches)]
-            if available_meds:
-                for _ in range(min(2, len(available_meds))):
-                    selected_med = random.choice(available_meds)
-                    available_meds.remove(selected_med)
+        # If we still don't have any medications, try direct name matching
+        if len(medication_matches) == 0:
+            print("No medications found with patterns, trying direct name matching")
+            
+            # Try exact medication name matching (case insensitive)
+            all_text_lower = all_text.lower()
+            for med_name in med_names:
+                # Skip very short medication names to avoid false positives
+                if len(med_name) < 5:
+                    continue
                     
-                    # Generate a realistic sample text for this medication
-                    dosage = random.choice(["250mg", "500mg", "10mg", "20mg", "100mg"])
-                    frequency = random.choice(["once daily", "twice daily", "three times daily", "as needed"])
-                    sample_text = f"Take {selected_med} {dosage} {frequency}"
-                    
-                    medication_matches.append({
-                        "extracted_text": selected_med,
-                        "matched_medication": selected_med,
-                        "confidence": 95.0,  # High confidence for demo purposes
-                        "dosage_info": {
-                            "amount": dosage,
-                            "frequency": frequency,
-                            "duration": "as prescribed",
-                            "special_instructions": []
-                        }
-                    })
+                # Search for medication name in text
+                med_name_lower = med_name.lower()
+                if med_name_lower in all_text_lower:
+                    # Verify it's not just part of a larger word by checking for word boundaries
+                    # Use regex to find the word with boundaries
+                    if re.search(r'\b' + re.escape(med_name_lower) + r'\b', all_text_lower):
+                        print(f"Found exact match for medication: {med_name}")
+                        start_idx = all_text_lower.find(med_name_lower)
+                        end_idx = start_idx + len(med_name)
+                        
+                        # Extract context around medication name for dosage
+                        context = all_text[max(0, start_idx - 30):min(len(all_text), end_idx + 50)]
+                        dosage_info = self.extract_dosage_info(med_name, context)
+                        
+                        medication_matches.append({
+                            "extracted_text": med_name,
+                            "matched_medication": med_name,
+                            "confidence": 0.95,  # High confidence for exact match
+                            "dosage_info": dosage_info
+                        })
+                        
+                        # Limit to a reasonable number of medications
+                        if len(medication_matches) >= 5:
+                            break
         
+        # As a last resort, try fuzzy matching on ONLY the medication-like text segments
+        if len(medication_matches) == 0:
+            print("No medications found, trying focused fuzzy matching on text segments")
+            
+            # Split the text into chunks that might contain medication names
+            medication_like_segments = []
+            
+            # Define patterns that often precede medication names
+            med_indicators = [
+                r'(?i)tab\.?\s+([A-Za-z]+)',
+                r'(?i)(?:cap|capsule)\.?\s+([A-Za-z]+)',
+                r'(?i)(?:take|rx|medicine):\s*([A-Za-z]+)',
+                r'(?i)(?:\d+\s*x\s*\d+)\s+([A-Za-z]+)',
+                r'(?i)(?:\d+\s*-\s*\d+\s*-\s*\d+)\s+([A-Za-z]+)'
+            ]
+            
+            # Extract potential medication names using these patterns
+            for pattern in med_indicators:
+                matches = re.finditer(pattern, all_text)
+                for match in matches:
+                    if match.group(1) and len(match.group(1)) >= 4:
+                        medication_like_segments.append(match.group(1))
+            
+            # If no segments found with indicators, try word-based approach for select OCR lines
+            if not medication_like_segments:
+                for item in ocr_results:
+                    # Only consider lines that are short and might be medication entries
+                    text = item["text"]
+                    if 3 < len(text) < 30 and not any(word.lower() in common_words for word in text.split()):
+                        parts = text.split()
+                        # Look at each 1-3 word combination that might be a medication name
+                        for i in range(len(parts)):
+                            for j in range(1, min(4, len(parts) - i + 1)):
+                                segment = " ".join(parts[i:i+j])
+                                if len(segment) >= 5:
+                                    medication_like_segments.append(segment)
+            
+            # Try fuzzy matching on these targeted segments only
+            for segment in medication_like_segments:
+                # Skip if it contains common words
+                if any(word.lower() in common_words for word in segment.split()):
+                    continue
+                
+                best_match, score = process.extractOne(segment, med_names)
+                # Use a very high threshold for fuzzy matching
+                if score > 92 and not any(med["matched_medication"] == best_match for med in medication_matches):
+                    print(f"Fuzzy matched '{segment}' to '{best_match}' with score {score}")
+                    dosage_info = self.extract_dosage_info(best_match, all_text)
+                    medication_matches.append({
+                        "extracted_text": segment,
+                        "matched_medication": best_match,
+                        "confidence": score / 100,
+                        "dosage_info": dosage_info
+                    })
+                    
+                    # Limit to a reasonable number of medications
+                    if len(medication_matches) >= 3:
+                        break
+        
+        # If still no medications found, provide helpful info
+        if len(medication_matches) == 0:
+            print("WARNING: No medications detected in the prescription image.")
+            # Return empty list to indicate no medications found
+        
+        print(f"Final medication matches: {', '.join([m['matched_medication'] for m in medication_matches])}")
         return medication_matches
     
     def extract_dosage_info(self, med_name, text):

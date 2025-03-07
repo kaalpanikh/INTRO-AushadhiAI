@@ -27,8 +27,8 @@ def main():
     print(f"{BLUE}{'=' * 60}{RESET}")
     
     # Check if ports are available
-    backend_port = 8001
-    frontend_port = 8000
+    backend_port = 8005
+    frontend_port = 8006
     
     if is_port_in_use(backend_port):
         print(f"{YELLOW}Warning: Port {backend_port} is already in use.{RESET}")
