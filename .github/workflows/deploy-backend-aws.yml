@@ -60,8 +60,7 @@ jobs:
       - name: Generate Dockerrun.aws.json
         run: |
           echo "Generating Dockerrun.aws.json..."
-          cat > Dockerrun.aws.json << EOF
-          {
+          echo '{
             "AWSEBDockerrunVersion": "1",
             "Image": {
               "Name": "${{ steps.login-ecr.outputs.registry }}/aushadhi-backend:${{ github.sha }}",
@@ -89,8 +88,7 @@ jobs:
                 "Value": "https://harryhome1.github.io,http://localhost:8006"
               }
             ]
-          }
-          EOF
+          }' > Dockerrun.aws.json
           
       - name: Check if Elastic Beanstalk environment exists
         id: check-env
@@ -115,9 +113,8 @@ jobs:
               aws ecr create-repository --repository-name aushadhi-backend --image-scanning-configuration scanOnPush=true
             fi
             
-            # Create options file for environment creation
-            cat > eb-options-temp.json << EOF
-            [
+            # Create options file for environment creation without heredoc
+            echo '[
               {
                 "Namespace": "aws:autoscaling:launchconfiguration",
                 "OptionName": "IamInstanceProfile",
@@ -153,8 +150,7 @@ jobs:
                 "OptionName": "HealthCheckPath",
                 "Value": "/api/health"
               }
-            ]
-            EOF
+            ]' > eb-options-temp.json
             
             # Create the environment
             aws elasticbeanstalk create-environment \

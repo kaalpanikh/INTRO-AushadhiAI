@@ -19,21 +19,35 @@ jobs:
       
       - name: Setup Pages
         uses: actions/configure-pages@v3
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Get Elastic Beanstalk URL
+        id: get-eb-url
+        run: |
+          EB_URL=$(aws elasticbeanstalk describe-environments --environment-names aushadhi-production --query "Environments[0].CNAME" --output text || echo "aushadhi-production.us-east-1.elasticbeanstalk.com")
+          echo "eb_url=$EB_URL" >> $GITHUB_OUTPUT
+          echo "Using Elastic Beanstalk URL: $EB_URL"
       
       - name: Update API URL for production
         run: |
           # Replace the API_URL with the AWS Elastic Beanstalk production URL
           # Use https instead of http for secure connections
           if grep -q "const API_URL" script.js; then
-            sed -i 's|const API_URL = .*|const API_URL = "https://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' script.js
+            sed -i 's|const API_URL = .*|const API_URL = "https://${{ steps.get-eb-url.outputs.eb_url }}";|g' script.js
           fi
           
           if grep -q "const API_URL" index.html; then
-            sed -i 's|const API_URL = .*|const API_URL = "https://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' index.html
+            sed -i 's|const API_URL = .*|const API_URL = "https://${{ steps.get-eb-url.outputs.eb_url }}";|g' index.html
           fi
           
           if grep -q "const API_URL" demo.html; then
-            sed -i 's|const API_URL = .*|const API_URL = "https://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' demo.html
+            sed -i 's|const API_URL = .*|const API_URL = "https://${{ steps.get-eb-url.outputs.eb_url }}";|g' demo.html
           fi
       
       - name: Upload artifact
