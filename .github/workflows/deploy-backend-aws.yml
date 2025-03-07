@@ -92,6 +92,86 @@ jobs:
           }
           EOF
           
+      - name: Check if Elastic Beanstalk environment exists
+        id: check-env
+        run: |
+          echo "Checking if Elastic Beanstalk environment exists..."
+          
+          # Create the application if it doesn't exist
+          if ! aws elasticbeanstalk describe-applications --application-names aushadhi-backend &>/dev/null; then
+            echo "Creating Elastic Beanstalk application 'aushadhi-backend'..."
+            aws elasticbeanstalk create-application --application-name aushadhi-backend --description "AushadhiAI Backend API"
+          else
+            echo "Elastic Beanstalk application 'aushadhi-backend' already exists."
+          fi
+          
+          # Check if the environment exists
+          if ! aws elasticbeanstalk describe-environments --environment-names aushadhi-production --query "Environments[?Status!='Terminated'].EnvironmentName" --output text | grep -q aushadhi-production; then
+            echo "Creating Elastic Beanstalk environment 'aushadhi-production'..."
+            
+            # Check if ECR repository exists and create it if it doesn't
+            if ! aws ecr describe-repositories --repository-names aushadhi-backend &>/dev/null; then
+              echo "Creating ECR repository 'aushadhi-backend'..."
+              aws ecr create-repository --repository-name aushadhi-backend --image-scanning-configuration scanOnPush=true
+            fi
+            
+            # Create options file for environment creation
+            cat > eb-options-temp.json << 'EOF'
+            [
+              {
+                "Namespace": "aws:autoscaling:launchconfiguration",
+                "OptionName": "IamInstanceProfile",
+                "Value": "aws-elasticbeanstalk-ec2-role"
+              },
+              {
+                "Namespace": "aws:elasticbeanstalk:application:environment",
+                "OptionName": "AZURE_VISION_ENDPOINT",
+                "Value": "${{ secrets.AZURE_VISION_ENDPOINT }}"
+              },
+              {
+                "Namespace": "aws:elasticbeanstalk:application:environment",
+                "OptionName": "AZURE_VISION_KEY",
+                "Value": "${{ secrets.AZURE_VISION_KEY }}"
+              },
+              {
+                "Namespace": "aws:elasticbeanstalk:application:environment",
+                "OptionName": "ALLOWED_ORIGINS",
+                "Value": "https://harryhome1.github.io,http://localhost:8006"
+              },
+              {
+                "Namespace": "aws:elasticbeanstalk:environment",
+                "OptionName": "EnvironmentType",
+                "Value": "SingleInstance"
+              },
+              {
+                "Namespace": "aws:elasticbeanstalk:application:environment",
+                "OptionName": "USE_AZURE_OCR",
+                "Value": "True"
+              },
+              {
+                "Namespace": "aws:elasticbeanstalk:environment:process:default",
+                "OptionName": "HealthCheckPath",
+                "Value": "/api/health"
+              }
+            ]
+            EOF
+            
+            # Create the environment
+            aws elasticbeanstalk create-environment \
+              --application-name aushadhi-backend \
+              --environment-name aushadhi-production \
+              --solution-stack-name "64bit Amazon Linux 2 v3.5.1 running Docker" \
+              --option-settings file://eb-options-temp.json
+            
+            echo "Waiting for environment to be created (this may take several minutes)..."
+            aws elasticbeanstalk wait environment-exists --environment-names aushadhi-production
+            
+            echo "env_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "Elastic Beanstalk environment 'aushadhi-production' already exists."
+            echo "env_created=false" >> $GITHUB_OUTPUT
+          fi
+          
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v21
         with:
@@ -116,7 +196,7 @@ jobs:
           RETRY_COUNT=0
           
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$EB_URL/api/health)
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$EB_URL/api/health || echo "000")
             
             if [ "$HTTP_STATUS" = "200" ]; then
               echo "Deployment successful! Health check endpoint is responding."
