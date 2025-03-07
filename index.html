@@ -3,10 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AushadhiAI - Decoding Prescriptions. Empowering Patients.</title>
+    <title>AushadhiAI - Decoding Prescriptions</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // Quick test to verify backend connection
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('http://localhost:8001/api/health');
+                if (response.ok) {
+                    console.log('✅ Backend connection successful!');
+                } else {
+                    console.error('❌ Backend returned error:', await response.text());
+                }
+            } catch (error) {
+                console.error('❌ Backend connection failed:', error);
+            }
+        });
+    </script>
 </head>
 <body>
     <header class="header">
@@ -16,7 +31,7 @@
                     <h1 class="logo"><span class="devanagari">औषधि</span>AI</h1>
                 </div>
                 <h2 class="tagline">Decoding Prescriptions. Empowering Patients.</h2>
-                <button class="cta-button">Try AushadhiAI Now</button>
+                <button class="cta-button" id="tryNowButton" onclick="scrollToAppSection()">Try AushadhiAI Now</button>
             </div>
             <div class="hero-image">
                 <img src="assets/hero-image.svg" alt="Prescription being scanned" class="hero-img">
@@ -96,12 +111,58 @@
         </div>
     </section>
 
+    <!-- New App Section -->
+    <section id="app-section" class="app-section">
+        <div class="container">
+            <h2 class="section-title">Try AushadhiAI</h2>
+            <div class="app-container">
+                <div class="upload-container">
+                    <h3>Upload Your Prescription</h3>
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-prompt" id="uploadPrompt">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Drag and drop your prescription image here or click to upload</p>
+                            <p class="small-text">Supports JPG and PNG formats</p>
+                        </div>
+                        <div class="preview-container" id="previewContainer" style="display: none;">
+                            <img id="previewImage" src="#" alt="Prescription Preview" />
+                            <button class="remove-button" id="removeImageBtn">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <input type="file" id="fileInput" accept="image/jpeg, image/png, image/jpg" style="display: none;" />
+                    </div>
+                    <div class="upload-actions">
+                        <button class="upload-button" id="uploadButton" disabled>Analyze Prescription</button>
+                        <div class="loader" id="loader" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>Analyzing prescription...</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="resultsContainer" class="results-container" style="display: none;">
+                    <h2>Prescription Analysis Results</h2>
+                    
+                    <!-- Medication details will be inserted here -->
+                    <div id="medications-container" class="medications-container"></div>
+                    
+                    <!-- Reset button -->
+                    <div class="action-buttons">
+                        <button id="resetButton" class="btn btn-secondary">
+                            <i class="fas fa-undo"></i> Analyze Another Prescription
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="cta-section">
         <div class="container">
             <div class="cta-content">
                 <h2>Ready to decode your prescription?</h2>
                 <p>Our AI-powered tool is here to help you understand your medication details.</p>
-                <button class="cta-button">Try AushadhiAI Now</button>
+                <button class="cta-button cta-scroll" onclick="scrollToAppSection()">Try AushadhiAI Now</button>
             </div>
         </div>
     </section>
@@ -113,6 +174,12 @@
         </div>
     </footer>
 
+    <script>
+        function scrollToAppSection() {
+            document.getElementById('app-section').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+
     <script src="script.js"></script>
 </body>
-</html> 
+</html>

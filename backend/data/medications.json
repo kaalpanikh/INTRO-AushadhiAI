@@ -1,0 +1,202 @@
+[
+    {
+        "name": "Amoxicillin",
+        "aliases": ["Amox", "Amoxil", "Trimox"],
+        "category": "Antibiotic",
+        "description": "An antibiotic used to treat a number of bacterial infections.",
+        "common_dosages": ["250mg", "500mg", "875mg"],
+        "side_effects": ["Diarrhea", "Rash", "Nausea", "Vomiting"],
+        "interactions": ["Probenecid", "Allopurinol", "Oral contraceptives"],
+        "warnings": ["May cause allergic reactions in people with penicillin allergy", "Take the full course as prescribed"]
+    },
+    {
+        "name": "Paracetamol",
+        "aliases": ["Acetaminophen", "Tylenol", "Panadol", "Calpol"],
+        "category": "Analgesic",
+        "description": "A medication used to treat pain and fever. It is typically used for mild to moderate pain.",
+        "common_dosages": ["325mg", "500mg", "650mg"],
+        "side_effects": ["Rare side effects include rash and liver damage with high doses"],
+        "interactions": ["Warfarin", "Alcohol", "Isoniazid"],
+        "warnings": ["Do not exceed recommended dose", "May cause liver damage in high doses or with alcohol consumption"]
+    },
+    {
+        "name": "Lipitor",
+        "aliases": ["Atorvastatin", "Atorva"],
+        "category": "Statin",
+        "description": "A medication used to prevent cardiovascular disease and treat abnormal lipid levels.",
+        "common_dosages": ["10mg", "20mg", "40mg", "80mg"],
+        "side_effects": ["Muscle pain", "Digestive problems", "Liver enzyme abnormalities"],
+        "interactions": ["Grapefruit juice", "Certain antibiotics", "Antifungals"],
+        "warnings": ["Report unexplained muscle pain", "May affect liver function"]
+    },
+    {
+        "name": "Metformin",
+        "aliases": ["Glucophage", "Fortamet", "Glumetza"],
+        "category": "Antidiabetic",
+        "description": "First-line medication for the treatment of type 2 diabetes.",
+        "common_dosages": ["500mg", "850mg", "1000mg"],
+        "side_effects": ["Digestive issues", "Metallic taste", "Vitamin B12 deficiency with long-term use"],
+        "interactions": ["Certain contrast dyes", "Alcohol", "Other diabetes medications"],
+        "warnings": ["May cause lactic acidosis", "Should be temporarily discontinued before surgical procedures"]
+    },
+    {
+        "name": "Omeprazole",
+        "aliases": ["Prilosec", "Losec", "Zegerid"],
+        "category": "Proton pump inhibitor",
+        "description": "Decreases stomach acid production and treats conditions such as gastroesophageal reflux disease (GERD).",
+        "common_dosages": ["10mg", "20mg", "40mg"],
+        "side_effects": ["Headache", "Diarrhea", "Abdominal pain", "Nausea"],
+        "interactions": ["Clopidogrel", "Diazepam", "Iron supplements"],
+        "warnings": ["Long-term use may increase risk of bone fractures", "May mask symptoms of gastric cancer"]
+    },
+    {
+        "name": "Cetirizine",
+        "aliases": ["Zyrtec", "Reactine", "Alerid"],
+        "category": "Antihistamine",
+        "description": "Used to treat allergies, hay fever, and urticaria (hives).",
+        "common_dosages": ["5mg", "10mg"],
+        "side_effects": ["Drowsiness", "Dry mouth", "Fatigue"],
+        "interactions": ["CNS depressants", "Alcohol", "Ritonavir"],
+        "warnings": ["May cause drowsiness", "Use caution when driving or operating machinery"]
+    },
+    {
+        "name": "Levothyroxine",
+        "aliases": ["Synthroid", "Levoxyl", "Euthyrox", "T4"],
+        "category": "Thyroid hormone",
+        "description": "Synthetic thyroid hormone used to treat thyroid hormone deficiency.",
+        "common_dosages": ["25mcg", "50mcg", "75mcg", "88mcg", "100mcg", "112mcg", "125mcg", "137mcg", "150mcg"],
+        "side_effects": ["Headache", "Insomnia", "Nervousness", "Palpitations"],
+        "interactions": ["Calcium supplements", "Iron supplements", "Antacids", "Cholestyramine"],
+        "warnings": ["Take on empty stomach", "Requires regular monitoring", "Avoid changing brands without consulting doctor"]
+    },
+    {
+        "name": "Amlodipine",
+        "aliases": ["Norvasc", "Katerzia", "Lotrel"],
+        "category": "Calcium channel blocker",
+        "description": "Used to treat high blood pressure and coronary artery disease.",
+        "common_dosages": ["2.5mg", "5mg", "10mg"],
+        "side_effects": ["Edema", "Flushing", "Headache", "Dizziness"],
+        "interactions": ["Grapefruit juice", "Simvastatin", "Other blood pressure medications"],
+        "warnings": ["Do not stop suddenly", "May cause swelling in ankles or feet"]
+    },
+    {
+        "name": "Ibuprofen",
+        "aliases": ["Advil", "Motrin", "Nurofen", "Brufen"],
+        "category": "NSAID",
+        "description": "Non-steroidal anti-inflammatory drug used to reduce fever, pain, and inflammation.",
+        "common_dosages": ["200mg", "400mg", "600mg", "800mg"],
+        "side_effects": ["Stomach pain", "Heartburn", "Dizziness", "Ringing in ears"],
+        "interactions": ["Aspirin", "Blood thinners", "Diuretics", "ACE inhibitors"],
+        "warnings": ["Take with food", "May increase risk of heart attack or stroke", "Use lowest effective dose for shortest duration"]
+    },
+    {
+        "name": "Losartan",
+        "aliases": ["Cozaar", "Hyzaar"],
+        "category": "ARB",
+        "description": "Angiotensin II receptor blocker used to treat high blood pressure and diabetic kidney disease.",
+        "common_dosages": ["25mg", "50mg", "100mg"],
+        "side_effects": ["Dizziness", "Fatigue", "Cough", "Diarrhea"],
+        "interactions": ["Lithium", "NSAIDs", "Potassium supplements"],
+        "warnings": ["May cause harm to unborn baby", "Avoid potassium supplements unless directed by doctor"]
+    },
+    {
+        "name": "Aspirin",
+        "aliases": ["ASA", "Bayer", "Ecotrin", "Bufferin"],
+        "category": "NSAID",
+        "description": "Used to treat pain, fever, and inflammation, and can help prevent heart attacks and stroke.",
+        "common_dosages": ["81mg", "325mg", "500mg"],
+        "side_effects": ["Stomach upset", "Heartburn", "Easy bruising", "Ringing in ears"],
+        "interactions": ["Blood thinners", "NSAIDs", "ACE inhibitors", "Methotrexate"],
+        "warnings": ["May cause stomach bleeding", "Not recommended for children with viral infections"]
+    },
+    {
+        "name": "Metoprolol",
+        "aliases": ["Lopressor", "Toprol-XL"],
+        "category": "Beta blocker",
+        "description": "Used to treat high blood pressure, chest pain, and heart failure.",
+        "common_dosages": ["25mg", "50mg", "100mg", "200mg"],
+        "side_effects": ["Fatigue", "Dizziness", "Depression", "Shortness of breath"],
+        "interactions": ["Certain antidepressants", "Calcium channel blockers", "Clonidine"],
+        "warnings": ["Do not stop suddenly", "May mask symptoms of low blood sugar in diabetics"]
+    },
+    {
+        "name": "Sertraline",
+        "aliases": ["Zoloft", "Lustral"],
+        "category": "SSRI",
+        "description": "Selective serotonin reuptake inhibitor used to treat depression, anxiety, and OCD.",
+        "common_dosages": ["25mg", "50mg", "100mg", "200mg"],
+        "side_effects": ["Nausea", "Insomnia", "Diarrhea", "Sexual dysfunction"],
+        "interactions": ["MAOIs", "Pimozide", "Blood thinners", "NSAIDs"],
+        "warnings": ["May increase risk of suicidal thoughts in young adults", "Requires gradual dose adjustment"]
+    },
+    {
+        "name": "Simvastatin",
+        "aliases": ["Zocor", "Simcor"],
+        "category": "Statin",
+        "description": "Used to lower cholesterol and prevent cardiovascular disease.",
+        "common_dosages": ["5mg", "10mg", "20mg", "40mg", "80mg"],
+        "side_effects": ["Muscle pain", "Liver enzyme abnormalities", "Digestive issues"],
+        "interactions": ["Grapefruit juice", "Certain antibiotics", "Cyclosporine", "Amiodarone"],
+        "warnings": ["Take in the evening", "Report unexplained muscle pain", "May interact with other medications"]
+    },
+    {
+        "name": "Fluoxetine",
+        "aliases": ["Prozac", "Sarafem", "Rapiflux"],
+        "category": "SSRI",
+        "description": "Selective serotonin reuptake inhibitor used to treat depression, OCD, panic disorder, and bulimia.",
+        "common_dosages": ["10mg", "20mg", "40mg", "60mg"],
+        "side_effects": ["Nausea", "Insomnia", "Headache", "Anxiety", "Sexual dysfunction"],
+        "interactions": ["MAOIs", "Triptans", "Tramadol", "Other antidepressants"],
+        "warnings": ["May increase risk of suicidal thoughts in young adults", "Requires several weeks for full effect"]
+    },
+    {
+        "name": "Albuterol",
+        "aliases": ["Ventolin", "ProAir", "Proventil"],
+        "category": "Bronchodilator",
+        "description": "Used to treat asthma, COPD, and other conditions that cause breathing problems.",
+        "common_dosages": ["90mcg inhaler", "2mg tablets", "4mg tablets"],
+        "side_effects": ["Nervousness", "Tremor", "Tachycardia", "Headache"],
+        "interactions": ["Beta blockers", "Diuretics", "Heart medications"],
+        "warnings": ["Overuse may decrease effectiveness", "May worsen heart conditions"]
+    },
+    {
+        "name": "Gabapentin",
+        "aliases": ["Neurontin", "Gralise", "Horizant"],
+        "category": "Anticonvulsant",
+        "description": "Used to treat seizures, nerve pain, and restless legs syndrome.",
+        "common_dosages": ["100mg", "300mg", "400mg", "600mg", "800mg"],
+        "side_effects": ["Dizziness", "Drowsiness", "Peripheral edema", "Ataxia"],
+        "interactions": ["Antacids", "Morphine", "Hydrocodone", "Alcohol"],
+        "warnings": ["Do not stop suddenly", "May cause suicidal thoughts", "Use caution when driving"]
+    },
+    {
+        "name": "Hydrochlorothiazide",
+        "aliases": ["HCTZ", "Microzide", "Hydrodiuril"],
+        "category": "Diuretic",
+        "description": "Used to treat high blood pressure and fluid retention.",
+        "common_dosages": ["12.5mg", "25mg", "50mg"],
+        "side_effects": ["Increased urination", "Electrolyte imbalances", "Increased sun sensitivity"],
+        "interactions": ["Lithium", "Digoxin", "NSAIDs", "Diabetes medications"],
+        "warnings": ["May cause dehydration", "Monitor electrolyte levels", "Protect skin from sun exposure"]
+    },
+    {
+        "name": "Montelukast",
+        "aliases": ["Singulair"],
+        "category": "Leukotriene modifier",
+        "description": "Used to prevent asthma attacks and relieve symptoms of seasonal allergies.",
+        "common_dosages": ["4mg", "5mg", "10mg"],
+        "side_effects": ["Headache", "Upper respiratory infection", "Fever", "Behavioral changes"],
+        "interactions": ["Phenobarbital", "Rifampin", "Certain antibiotics"],
+        "warnings": ["May cause neuropsychiatric events", "Not for acute asthma attacks"]
+    },
+    {
+        "name": "Esomeprazole",
+        "aliases": ["Nexium", "Esotrex"],
+        "category": "Proton pump inhibitor",
+        "description": "Used to reduce stomach acid in conditions like GERD and ulcers.",
+        "common_dosages": ["20mg", "40mg"],
+        "side_effects": ["Headache", "Diarrhea", "Nausea", "Abdominal pain"],
+        "interactions": ["Clopidogrel", "Cilostazol", "Diazepam"],
+        "warnings": ["Long-term use may increase risk of fractures", "May mask symptoms of gastric cancer"]
+    }
+]
