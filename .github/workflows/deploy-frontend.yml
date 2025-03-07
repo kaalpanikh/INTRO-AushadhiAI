@@ -28,7 +28,7 @@ jobs:
           sed -i 's|const API_URL = .*|const API_URL = "http://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' index.html
       
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v1
         with:
           path: '.'
           
