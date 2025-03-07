@@ -67,11 +67,15 @@ async def read_root():
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy", "services": {
-        "ocr": "active",
-        "medication_db": "active",
-        "api": "active"
-    }}
+    """Health check endpoint for AWS Elastic Beanstalk"""
+    return {
+        "status": "healthy",
+        "services": {
+            "ocr": "active",
+            "medication_db": "active",
+            "api": "active"
+        }
+    }
 
 @app.get("/api/medications")
 async def get_medications():

@@ -23,9 +23,18 @@ jobs:
       - name: Update API URL for production
         run: |
           # Replace the API_URL with the AWS Elastic Beanstalk production URL
-          # The format is typically http://[environment-name].[region].elasticbeanstalk.com
-          sed -i 's|const API_URL = .*|const API_URL = "http://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' script.js
-          sed -i 's|const API_URL = .*|const API_URL = "http://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' index.html
+          # Use https instead of http for secure connections
+          if grep -q "const API_URL" script.js; then
+            sed -i 's|const API_URL = .*|const API_URL = "https://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' script.js
+          fi
+          
+          if grep -q "const API_URL" index.html; then
+            sed -i 's|const API_URL = .*|const API_URL = "https://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' index.html
+          fi
+          
+          if grep -q "const API_URL" demo.html; then
+            sed -i 's|const API_URL = .*|const API_URL = "https://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' demo.html
+          fi
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1

@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v3
         
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -28,19 +28,38 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
         
       - name: Build, tag, and push image to Amazon ECR
+        id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: aushadhi-backend
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          # Build the Docker image
+          echo "Building Docker image..."
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          if [ $? -ne 0 ]; then
+            echo "Error: Docker build failed!"
+            exit 1
+          fi
+          
+          # Push the image
+          echo "Pushing Docker image to ECR..."
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          if [ $? -ne 0 ]; then
+            echo "Error: Failed to push Docker image to ECR!"
+            exit 1
+          fi
+          
+          # Tag as latest
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          # Output the image URI
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
           
       - name: Generate Dockerrun.aws.json
         run: |
+          echo "Generating Dockerrun.aws.json..."
           cat > Dockerrun.aws.json << EOF
           {
             "AWSEBDockerrunVersion": "1",
@@ -55,12 +74,26 @@ jobs:
               }
             ],
             "Volumes": [],
-            "Logging": "/var/log"
+            "Logging": "/var/log",
+            "Environment": [
+              {
+                "Name": "AZURE_VISION_ENDPOINT",
+                "Value": "${{ secrets.AZURE_VISION_ENDPOINT }}"
+              },
+              {
+                "Name": "AZURE_VISION_KEY",
+                "Value": "${{ secrets.AZURE_VISION_KEY }}"
+              },
+              {
+                "Name": "ALLOWED_ORIGINS",
+                "Value": "https://harryhome1.github.io,http://localhost:8006"
+              }
+            ]
           }
           EOF
           
       - name: Deploy to Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v20
+        uses: einaregilsson/beanstalk-deploy@v21
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -69,4 +102,31 @@ jobs:
           version_label: aushadhi-${{ github.sha }}
           region: ${{ secrets.AWS_REGION }}
           deployment_package: Dockerrun.aws.json
-          existing_bucket_name: ${{ secrets.AWS_S3_BUCKET }} 
+          existing_bucket_name: ${{ secrets.AWS_S3_BUCKET }}
+          wait_for_deployment: true
+          wait_for_environment_recovery: 300
+          
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment..."
+          EB_URL=$(aws elasticbeanstalk describe-environments --environment-names aushadhi-production --query "Environments[0].CNAME" --output text)
+          
+          # Wait for the application to become available
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$EB_URL/api/health)
+            
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "Deployment successful! Health check endpoint is responding."
+              exit 0
+            fi
+            
+            echo "Waiting for application to become available... (Attempt $((RETRY_COUNT+1)) of $MAX_RETRIES)"
+            RETRY_COUNT=$((RETRY_COUNT+1))
+            sleep 30
+          done
+          
+          echo "Error: Deployment verification failed. Health check endpoint is not responding."
+          exit 1 

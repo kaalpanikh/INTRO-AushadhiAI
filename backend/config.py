@@ -39,9 +39,17 @@ AZURE_VISION_KEY = os.getenv("AZURE_VISION_KEY", "")
 # CORS Settings
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8006").split(",")
 
+# Use Azure OCR setting 
+USE_AZURE_OCR = os.getenv("USE_AZURE_OCR", "True").lower() == "true"
+
+# RxNorm API configuration
+RXNORM_API_BASE_URL = "https://rxnav.nlm.nih.gov/REST"
+
 # Application Settings
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ENV = os.getenv("ENV", "development")
+MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload size
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 def validate_config() -> List[str]:
     """Validate that all required config variables are set"""
