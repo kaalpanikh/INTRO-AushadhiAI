@@ -116,7 +116,7 @@ jobs:
             fi
             
             # Create options file for environment creation
-            cat > eb-options-temp.json << 'EOF'
+            cat > eb-options-temp.json << EOF
             [
               {
                 "Namespace": "aws:autoscaling:launchconfiguration",
