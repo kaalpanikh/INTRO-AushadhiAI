@@ -60,35 +60,42 @@ jobs:
       - name: Generate Dockerrun.aws.json
         run: |
           echo "Generating Dockerrun.aws.json..."
-          echo '{
-            "AWSEBDockerrunVersion": "1",
-            "Image": {
-              "Name": "${{ steps.login-ecr.outputs.registry }}/aushadhi-backend:${{ github.sha }}",
-              "Update": "true"
-            },
-            "Ports": [
-              {
-                "ContainerPort": 8007,
-                "HostPort": 8007
-              }
-            ],
-            "Volumes": [],
-            "Logging": "/var/log",
-            "Environment": [
-              {
-                "Name": "AZURE_VISION_ENDPOINT",
-                "Value": "${{ secrets.AZURE_VISION_ENDPOINT }}"
+          python3 -c "
+          import json
+          
+          dockerrun = {
+              'AWSEBDockerrunVersion': '1',
+              'Image': {
+                  'Name': '${{ steps.login-ecr.outputs.registry }}/aushadhi-backend:${{ github.sha }}',
+                  'Update': 'true'
               },
-              {
-                "Name": "AZURE_VISION_KEY",
-                "Value": "${{ secrets.AZURE_VISION_KEY }}"
-              },
-              {
-                "Name": "ALLOWED_ORIGINS",
-                "Value": "https://harryhome1.github.io,http://localhost:8006"
-              }
-            ]
-          }' > Dockerrun.aws.json
+              'Ports': [
+                  {
+                      'ContainerPort': 8007,
+                      'HostPort': 8007
+                  }
+              ],
+              'Volumes': [],
+              'Logging': '/var/log',
+              'Environment': [
+                  {
+                      'Name': 'AZURE_VISION_ENDPOINT',
+                      'Value': '${{ secrets.AZURE_VISION_ENDPOINT }}'
+                  },
+                  {
+                      'Name': 'AZURE_VISION_KEY',
+                      'Value': '${{ secrets.AZURE_VISION_KEY }}'
+                  },
+                  {
+                      'Name': 'ALLOWED_ORIGINS',
+                      'Value': 'https://harryhome1.github.io,http://localhost:8006'
+                  }
+              ]
+          }
+          
+          with open('Dockerrun.aws.json', 'w') as f:
+              json.dump(dockerrun, f, indent=2)
+          "
           
       - name: Check if Elastic Beanstalk environment exists
         id: check-env
@@ -113,44 +120,51 @@ jobs:
               aws ecr create-repository --repository-name aushadhi-backend --image-scanning-configuration scanOnPush=true
             fi
             
-            # Create options file for environment creation without heredoc
-            echo '[
-              {
-                "Namespace": "aws:autoscaling:launchconfiguration",
-                "OptionName": "IamInstanceProfile",
-                "Value": "aws-elasticbeanstalk-ec2-role"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:application:environment",
-                "OptionName": "AZURE_VISION_ENDPOINT",
-                "Value": "${{ secrets.AZURE_VISION_ENDPOINT }}"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:application:environment",
-                "OptionName": "AZURE_VISION_KEY",
-                "Value": "${{ secrets.AZURE_VISION_KEY }}"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:application:environment",
-                "OptionName": "ALLOWED_ORIGINS",
-                "Value": "https://harryhome1.github.io,http://localhost:8006"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:environment",
-                "OptionName": "EnvironmentType",
-                "Value": "SingleInstance"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:application:environment",
-                "OptionName": "USE_AZURE_OCR",
-                "Value": "True"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:environment:process:default",
-                "OptionName": "HealthCheckPath",
-                "Value": "/api/health"
-              }
-            ]' > eb-options-temp.json
+            # Create options file for environment creation using Python for proper JSON escaping
+            python3 -c "
+            import json
+            
+            eb_options = [
+                {
+                    'Namespace': 'aws:autoscaling:launchconfiguration',
+                    'OptionName': 'IamInstanceProfile',
+                    'Value': 'aws-elasticbeanstalk-ec2-role'
+                },
+                {
+                    'Namespace': 'aws:elasticbeanstalk:application:environment',
+                    'OptionName': 'AZURE_VISION_ENDPOINT',
+                    'Value': '${{ secrets.AZURE_VISION_ENDPOINT }}'
+                },
+                {
+                    'Namespace': 'aws:elasticbeanstalk:application:environment',
+                    'OptionName': 'AZURE_VISION_KEY',
+                    'Value': '${{ secrets.AZURE_VISION_KEY }}'
+                },
+                {
+                    'Namespace': 'aws:elasticbeanstalk:application:environment',
+                    'OptionName': 'ALLOWED_ORIGINS',
+                    'Value': 'https://harryhome1.github.io,http://localhost:8006'
+                },
+                {
+                    'Namespace': 'aws:elasticbeanstalk:environment',
+                    'OptionName': 'EnvironmentType',
+                    'Value': 'SingleInstance'
+                },
+                {
+                    'Namespace': 'aws:elasticbeanstalk:application:environment',
+                    'OptionName': 'USE_AZURE_OCR',
+                    'Value': 'True'
+                },
+                {
+                    'Namespace': 'aws:elasticbeanstalk:environment:process:default',
+                    'OptionName': 'HealthCheckPath',
+                    'Value': '/api/health'
+                }
+            ]
+            
+            with open('eb-options-temp.json', 'w') as f:
+                json.dump(eb_options, f, indent=2)
+            "
             
             # Create the environment
             aws elasticbeanstalk create-environment \
