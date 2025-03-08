@@ -1,9 +1,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     // === Configuration ===
-    // API Configuration - will be updated during deployment
-    const API_URL = 'http://localhost:8007';
+    // API Configuration - Updated for production
+    const API_URL = 'https://aiapi.nikhilmishra.live';
     
-    // For production deployment, set API_BASE_URL to your Azure backend URL
+    // Previous configuration
+    // const API_URL = 'http://localhost:8007';
     // const API_URL = 'https://aushadhi-backend.azurewebsites.net';
     
     // Create a global variable to track the current file

@@ -26,43 +26,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
-        
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      
-      - name: Get Elastic Beanstalk URL
-        id: get-eb-url
-        run: |
-          echo "Retrieving Elastic Beanstalk URL..."
-          if ! aws elasticbeanstalk describe-environments --environment-names aushadhi-production &>/dev/null; then
-            echo "Warning: Elastic Beanstalk environment 'aushadhi-production' doesn't exist yet."
-            echo "Using default fallback URL."
-            EB_URL="aushadhi-production.${AWS_REGION}.elasticbeanstalk.com"
-          else
-            EB_URL=$(aws elasticbeanstalk describe-environments \
-              --environment-names aushadhi-production \
-              --query "Environments[0].CNAME" \
-              --output text)
-            
-            if [ -z "$EB_URL" ]; then
-              echo "Warning: Could not retrieve Elastic Beanstalk URL."
-              echo "Using default fallback URL."
-              EB_URL="aushadhi-production.${AWS_REGION}.elasticbeanstalk.com"
-            else
-              echo "Successfully retrieved Elastic Beanstalk URL: $EB_URL"
-            fi
-          fi
-          
-          echo "Using backend URL: https://$EB_URL"
-          echo "eb_url=$EB_URL" >> $GITHUB_OUTPUT
       
       - name: Update API URL for production
         run: |
-          BACKEND_URL="https://${{ steps.get-eb-url.outputs.eb_url }}"
+          BACKEND_URL="https://aiapi.nikhilmishra.live"
           echo "Updating API URL to: $BACKEND_URL"
           
           # Function to update API URL in files
