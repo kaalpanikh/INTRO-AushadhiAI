@@ -3,6 +3,8 @@ name: Deploy Frontend to GitHub Pages
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
 
 permissions:
@@ -19,13 +21,95 @@ jobs:
       
       - name: Setup Pages
         uses: actions/configure-pages@v3
+        
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Get Elastic Beanstalk URL
+        id: get-eb-url
+        run: |
+          echo "Retrieving Elastic Beanstalk URL..."
+          if ! aws elasticbeanstalk describe-environments --environment-names aushadhi-production &>/dev/null; then
+            echo "Warning: Elastic Beanstalk environment 'aushadhi-production' doesn't exist yet."
+            echo "Using default fallback URL."
+            EB_URL="aushadhi-production.${AWS_REGION}.elasticbeanstalk.com"
+          else
+            EB_URL=$(aws elasticbeanstalk describe-environments \
+              --environment-names aushadhi-production \
+              --query "Environments[0].CNAME" \
+              --output text)
+            
+            if [ -z "$EB_URL" ]; then
+              echo "Warning: Could not retrieve Elastic Beanstalk URL."
+              echo "Using default fallback URL."
+              EB_URL="aushadhi-production.${AWS_REGION}.elasticbeanstalk.com"
+            else
+              echo "Successfully retrieved Elastic Beanstalk URL: $EB_URL"
+            fi
+          fi
+          
+          echo "Using backend URL: https://$EB_URL"
+          echo "eb_url=$EB_URL" >> $GITHUB_OUTPUT
       
       - name: Update API URL for production
         run: |
-          # Replace the API_URL with the AWS Elastic Beanstalk production URL
-          # The format is typically http://[environment-name].[region].elasticbeanstalk.com
-          sed -i 's|const API_URL = .*|const API_URL = "http://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' script.js
-          sed -i 's|const API_URL = .*|const API_URL = "http://aushadhi-production.us-east-1.elasticbeanstalk.com";|g' index.html
+          BACKEND_URL="https://${{ steps.get-eb-url.outputs.eb_url }}"
+          echo "Updating API URL to: $BACKEND_URL"
+          
+          # Function to update API URL in files
+          update_api_url() {
+            local file=$1
+            if [ -f "$file" ]; then
+              echo "Checking file: $file"
+              if grep -q "const API_URL" "$file"; then
+                echo "Updating API URL in $file"
+                sed -i "s|const API_URL = .*|const API_URL = \"$BACKEND_URL\";|g" "$file"
+                echo "✅ Updated API URL in $file"
+              else
+                echo "⚠️ API_URL not found in $file"
+              fi
+            else
+              echo "⚠️ File not found: $file"
+            fi
+          }
+          
+          # Update API URL in all relevant files
+          update_api_url "script.js"
+          update_api_url "index.html"
+          update_api_url "demo.html"
+          
+          # Ensure proper CORS configuration in API requests
+          echo "Adding CORS headers to API requests..."
+          for file in script.js index.html demo.html; do
+            if [ -f "$file" ]; then
+              if grep -q "fetch(" "$file"; then
+                echo "Checking fetch requests in $file"
+                # Update fetch requests with CORS mode
+                sed -i "s|fetch(\(.*\))|fetch(\1, { mode: 'cors', credentials: 'omit' })|g" "$file"
+              fi
+            fi
+          done
+      
+      - name: List updated files
+        run: |
+          echo "Contents of updated files:"
+          echo "----------------------"
+          for file in script.js index.html demo.html; do
+            if [ -f "$file" ]; then
+              echo "File: $file"
+              grep -n "API_URL" "$file" || echo "No API_URL found"
+              echo "----------------------"
+            fi
+          done
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
@@ -42,3 +126,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
+        
+      - name: Output deployment URLs
+        run: |
+          echo "::notice title=Frontend Deployment Success::GitHub Pages site deployed at ${{ steps.deployment.outputs.page_url }}"

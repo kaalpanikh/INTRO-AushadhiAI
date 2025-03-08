@@ -17,31 +17,78 @@ jobs:
         uses: actions/checkout@v3
         
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+          
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          
+      - name: Check AWS CLI configuration
+        run: |
+          aws --version
+          aws sts get-caller-identity
           
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
         
       - name: Build, tag, and push image to Amazon ECR
+        id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: aushadhi-backend
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          # Build the Docker image
+          echo "Building Docker image..."
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          if [ $? -ne 0 ]; then
+            echo "Error: Docker build failed!"
+            exit 1
+          fi
+          
+          # Push the image
+          echo "Pushing Docker image to ECR..."
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          if [ $? -ne 0 ]; then
+            echo "Error: Failed to push Docker image to ECR!"
+            exit 1
+          fi
+          
+          # Tag as latest
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
           
-      - name: Generate Dockerrun.aws.json
+          # Output the image URI
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Image successfully pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          
+      - name: Process secrets for JSON
+        id: process-secrets
         run: |
-          cat > Dockerrun.aws.json << EOF
+          # Process secrets to clean any newlines or control characters
+          AZURE_ENDPOINT="${{ secrets.AZURE_VISION_ENDPOINT }}"
+          AZURE_KEY="${{ secrets.AZURE_VISION_KEY }}"
+          
+          # Remove any newlines and control characters
+          AZURE_ENDPOINT=$(echo "$AZURE_ENDPOINT" | tr -d '\n\r')
+          AZURE_KEY=$(echo "$AZURE_KEY" | tr -d '\n\r')
+          
+          # Export for next steps
+          echo "azure_endpoint=$AZURE_ENDPOINT" >> $GITHUB_OUTPUT
+          echo "azure_key=$AZURE_KEY" >> $GITHUB_OUTPUT
+          
+      - name: Create Dockerrun.aws.json
+        run: |
+          echo "Creating Dockerrun.aws.json..."
+          
+          # Create JSON file content
+          JSON_CONTENT='
           {
             "AWSEBDockerrunVersion": "1",
             "Image": {
@@ -55,12 +102,215 @@ jobs:
               }
             ],
             "Volumes": [],
-            "Logging": "/var/log"
+            "Logging": "/var/log",
+            "Environment": [
+              {
+                "Name": "AZURE_VISION_ENDPOINT",
+                "Value": "${{ steps.process-secrets.outputs.azure_endpoint }}"
+              },
+              {
+                "Name": "AZURE_VISION_KEY",
+                "Value": "${{ steps.process-secrets.outputs.azure_key }}"
+              },
+              {
+                "Name": "ALLOWED_ORIGINS",
+                "Value": "https://harryhome1.github.io,http://localhost:8006"
+              },
+              {
+                "Name": "USE_AZURE_OCR",
+                "Value": "True"
+              },
+              {
+                "Name": "DEBUG",
+                "Value": "False"
+              }
+            ]
           }
-          EOF
+          '
+          # Write to file
+          echo "$JSON_CONTENT" > Dockerrun.aws.json
+          
+          # Validate the JSON file
+          echo "Validating Dockerrun.aws.json..."
+          if ! jq empty Dockerrun.aws.json; then
+            echo "Error: Invalid JSON in Dockerrun.aws.json"
+            cat Dockerrun.aws.json
+            exit 1
+          fi
+          echo "Dockerrun.aws.json is valid"
+          
+      - name: Check IAM instance profile
+        id: check-iam
+        run: |
+          # Check if the EC2 role exists
+          if ! aws iam get-role --role-name aws-elasticbeanstalk-ec2-role &>/dev/null; then
+            echo "Creating IAM role for Elastic Beanstalk EC2 instances..."
+            # Create the role with EC2 trust relationship
+            aws iam create-role \
+              --role-name aws-elasticbeanstalk-ec2-role \
+              --assume-role-policy-document '{
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": "ec2.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                  }
+                ]
+              }'
+              
+            # Attach necessary policies
+            aws iam attach-role-policy \
+              --role-name aws-elasticbeanstalk-ec2-role \
+              --policy-arn arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier
+              
+            # Create instance profile
+            aws iam create-instance-profile \
+              --instance-profile-name aws-elasticbeanstalk-ec2-role
+              
+            # Add role to instance profile
+            aws iam add-role-to-instance-profile \
+              --instance-profile-name aws-elasticbeanstalk-ec2-role \
+              --role-name aws-elasticbeanstalk-ec2-role
+              
+            echo "profile_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "IAM role 'aws-elasticbeanstalk-ec2-role' already exists."
+            echo "profile_created=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Process secrets for environment
+        id: env-secrets
+        run: |
+          # Process secrets for environment options file
+          AZURE_ENDPOINT="${{ secrets.AZURE_VISION_ENDPOINT }}"
+          AZURE_KEY="${{ secrets.AZURE_VISION_KEY }}"
+          
+          # Remove any newlines and control characters
+          AZURE_ENDPOINT=$(echo "$AZURE_ENDPOINT" | tr -d '\n\r')
+          AZURE_KEY=$(echo "$AZURE_KEY" | tr -d '\n\r')
+          
+          # Export for next steps
+          echo "azure_endpoint=$AZURE_ENDPOINT" >> $GITHUB_OUTPUT
+          echo "azure_key=$AZURE_KEY" >> $GITHUB_OUTPUT
+          
+      - name: Create EB options file
+        run: |
+          echo "Creating environment configuration file..."
+          
+          # Create JSON content
+          JSON_CONTENT='
+          [
+            {
+              "Namespace": "aws:autoscaling:launchconfiguration",
+              "OptionName": "IamInstanceProfile",
+              "Value": "aws-elasticbeanstalk-ec2-role"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "AZURE_VISION_ENDPOINT",
+              "Value": "${{ steps.env-secrets.outputs.azure_endpoint }}"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "AZURE_VISION_KEY",
+              "Value": "${{ steps.env-secrets.outputs.azure_key }}"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "ALLOWED_ORIGINS",
+              "Value": "https://harryhome1.github.io,http://localhost:8006"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment",
+              "OptionName": "EnvironmentType",
+              "Value": "SingleInstance"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "USE_AZURE_OCR",
+              "Value": "True"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment:process:default",
+              "OptionName": "HealthCheckPath",
+              "Value": "/api/health"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment:process:default",
+              "OptionName": "HealthCheckTimeout",
+              "Value": "30"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment:process:default",
+              "OptionName": "MatcherHTTPCode",
+              "Value": "200"
+            }
+          ]
+          '
+          
+          # Write to file
+          echo "$JSON_CONTENT" > eb-options-temp.json
+          
+          # Validate the JSON file
+          echo "Validating environment configuration file..."
+          if ! jq empty eb-options-temp.json; then
+            echo "Error: Invalid JSON in eb-options-temp.json"
+            cat eb-options-temp.json
+            exit 1
+          fi
+          echo "Environment configuration file is valid"
+          
+      - name: List available solution stacks
+        run: |
+          echo "Listing available Docker solution stacks..."
+          aws elasticbeanstalk list-available-solution-stacks | grep -i docker
+          
+      - name: Check if Elastic Beanstalk environment exists
+        id: check-env
+        run: |
+          echo "Checking if Elastic Beanstalk environment exists..."
+          
+          # Create the application if it doesn't exist
+          if ! aws elasticbeanstalk describe-applications --application-names aushadhi-backend &>/dev/null; then
+            echo "Creating Elastic Beanstalk application 'aushadhi-backend'..."
+            aws elasticbeanstalk create-application --application-name aushadhi-backend --description "AushadhiAI Backend API"
+          else
+            echo "Elastic Beanstalk application 'aushadhi-backend' already exists."
+          fi
+          
+          # Check if the environment exists
+          if ! aws elasticbeanstalk describe-environments --environment-names aushadhi-production --query "Environments[?Status!='Terminated'].EnvironmentName" --output text | grep -q aushadhi-production; then
+            echo "Creating Elastic Beanstalk environment 'aushadhi-production'..."
+            
+            # Check if ECR repository exists and create it if it doesn't
+            if ! aws ecr describe-repositories --repository-names aushadhi-backend &>/dev/null; then
+              echo "Creating ECR repository 'aushadhi-backend'..."
+              aws ecr create-repository --repository-name aushadhi-backend --image-scanning-configuration scanOnPush=true
+            fi
+            
+            # Create the environment
+            echo "Creating Elastic Beanstalk environment (this may take 5-10 minutes)..."
+            aws elasticbeanstalk create-environment \
+              --application-name aushadhi-backend \
+              --environment-name aushadhi-production \
+              --solution-stack-name "64bit Amazon Linux 2 v4.0.7 running Docker" \
+              --option-settings file://eb-options-temp.json
+            
+            # Wait for the environment to be created
+            echo "Waiting for environment to be created (this may take several minutes)..."
+            aws elasticbeanstalk wait environment-exists --environment-names aushadhi-production
+            
+            echo "env_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "Elastic Beanstalk environment 'aushadhi-production' already exists."
+            echo "env_created=false" >> $GITHUB_OUTPUT
+          fi
           
       - name: Deploy to Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v20
+        uses: einaregilsson/beanstalk-deploy@v21
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -69,4 +319,41 @@ jobs:
           version_label: aushadhi-${{ github.sha }}
           region: ${{ secrets.AWS_REGION }}
           deployment_package: Dockerrun.aws.json
-          existing_bucket_name: ${{ secrets.AWS_S3_BUCKET }} 
+          existing_bucket_name: ${{ secrets.AWS_S3_BUCKET }}
+          wait_for_deployment: true
+          wait_for_environment_recovery: 300
+          
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment..."
+          EB_URL=$(aws elasticbeanstalk describe-environments --environment-names aushadhi-production --query "Environments[0].CNAME" --output text)
+          echo "Elastic Beanstalk URL: $EB_URL"
+          
+          # Wait for the application to become available
+          MAX_RETRIES=15
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Checking health endpoint: http://$EB_URL/api/health"
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://$EB_URL/api/health" || echo "000")
+            
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "✅ Deployment successful! Health check endpoint is responding with status $HTTP_STATUS."
+              echo "🚀 Your backend API is now available at: http://$EB_URL"
+              echo "ELASTIC_BEANSTALK_URL=http://$EB_URL" >> $GITHUB_ENV
+              exit 0
+            fi
+            
+            echo "Waiting for application to become available... (Attempt $((RETRY_COUNT+1)) of $MAX_RETRIES, status: $HTTP_STATUS)"
+            RETRY_COUNT=$((RETRY_COUNT+1))
+            sleep 30
+          done
+          
+          echo "⚠️ Deployment verification timed out. Health check endpoint did not respond with status 200."
+          echo "🔍 Check the Elastic Beanstalk logs for more information: https://console.aws.amazon.com/elasticbeanstalk/home?region=${{ secrets.AWS_REGION }}#/environment/dashboard?environmentId=aushadhi-production"
+          exit 1
+          
+      - name: Output deployment info
+        if: success()
+        run: |
+          echo "::notice title=Deployment Success::Backend deployed successfully to $ELASTIC_BEANSTALK_URL" 
