@@ -84,19 +84,15 @@ jobs:
           echo "azure_key=$AZURE_KEY" >> $GITHUB_OUTPUT
           
       - name: Create Dockerrun.aws.json
-        env:
-          AZURE_VISION_ENDPOINT: ${{ steps.process-secrets.outputs.azure_endpoint }}
-          AZURE_VISION_KEY: ${{ steps.process-secrets.outputs.azure_key }}
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
           echo "Creating Dockerrun.aws.json..."
-          # Create the Dockerrun.aws.json file with clean environment variables
-          cat > Dockerrun.aws.json << EOF
+          
+          # Create JSON file content
+          JSON_CONTENT='
           {
             "AWSEBDockerrunVersion": "1",
             "Image": {
-              "Name": "${ECR_REGISTRY}/aushadhi-backend:${IMAGE_TAG}",
+              "Name": "${{ steps.login-ecr.outputs.registry }}/aushadhi-backend:${{ github.sha }}",
               "Update": "true"
             },
             "Ports": [
@@ -110,11 +106,11 @@ jobs:
             "Environment": [
               {
                 "Name": "AZURE_VISION_ENDPOINT",
-                "Value": "${AZURE_VISION_ENDPOINT}"
+                "Value": "${{ steps.process-secrets.outputs.azure_endpoint }}"
               },
               {
                 "Name": "AZURE_VISION_KEY",
-                "Value": "${AZURE_VISION_KEY}"
+                "Value": "${{ steps.process-secrets.outputs.azure_key }}"
               },
               {
                 "Name": "ALLOWED_ORIGINS",
@@ -130,11 +126,12 @@ jobs:
               }
             ]
           }
-          EOF
+          '
+          # Write to file
+          echo "$JSON_CONTENT" > Dockerrun.aws.json
           
           # Validate the JSON file
           echo "Validating Dockerrun.aws.json..."
-          cat Dockerrun.aws.json
           if ! jq empty Dockerrun.aws.json; then
             echo "Error: Invalid JSON in Dockerrun.aws.json"
             cat Dockerrun.aws.json
@@ -199,11 +196,75 @@ jobs:
           echo "azure_endpoint=$AZURE_ENDPOINT" >> $GITHUB_OUTPUT
           echo "azure_key=$AZURE_KEY" >> $GITHUB_OUTPUT
           
+      - name: Create EB options file
+        run: |
+          echo "Creating environment configuration file..."
+          
+          # Create JSON content
+          JSON_CONTENT='
+          [
+            {
+              "Namespace": "aws:autoscaling:launchconfiguration",
+              "OptionName": "IamInstanceProfile",
+              "Value": "aws-elasticbeanstalk-ec2-role"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "AZURE_VISION_ENDPOINT",
+              "Value": "${{ steps.env-secrets.outputs.azure_endpoint }}"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "AZURE_VISION_KEY",
+              "Value": "${{ steps.env-secrets.outputs.azure_key }}"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "ALLOWED_ORIGINS",
+              "Value": "https://harryhome1.github.io,http://localhost:8006"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment",
+              "OptionName": "EnvironmentType",
+              "Value": "SingleInstance"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "USE_AZURE_OCR",
+              "Value": "True"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment:process:default",
+              "OptionName": "HealthCheckPath",
+              "Value": "/api/health"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment:process:default",
+              "OptionName": "HealthCheckTimeout",
+              "Value": "30"
+            },
+            {
+              "Namespace": "aws:elasticbeanstalk:environment:process:default",
+              "OptionName": "MatcherHTTPCode",
+              "Value": "200"
+            }
+          ]
+          '
+          
+          # Write to file
+          echo "$JSON_CONTENT" > eb-options-temp.json
+          
+          # Validate the JSON file
+          echo "Validating environment configuration file..."
+          if ! jq empty eb-options-temp.json; then
+            echo "Error: Invalid JSON in eb-options-temp.json"
+            cat eb-options-temp.json
+            exit 1
+          fi
+          echo "Environment configuration file is valid"
+          
       - name: Check if Elastic Beanstalk environment exists
         id: check-env
-        env:
-          AZURE_VISION_ENDPOINT: ${{ steps.env-secrets.outputs.azure_endpoint }}
-          AZURE_VISION_KEY: ${{ steps.env-secrets.outputs.azure_key }}
         run: |
           echo "Checking if Elastic Beanstalk environment exists..."
           
@@ -224,67 +285,6 @@ jobs:
               echo "Creating ECR repository 'aushadhi-backend'..."
               aws ecr create-repository --repository-name aushadhi-backend --image-scanning-configuration scanOnPush=true
             fi
-            
-            # Create options file for environment creation
-            echo "Creating environment configuration file..."
-            cat > eb-options-temp.json << EOF
-            [
-              {
-                "Namespace": "aws:autoscaling:launchconfiguration",
-                "OptionName": "IamInstanceProfile",
-                "Value": "aws-elasticbeanstalk-ec2-role"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:application:environment",
-                "OptionName": "AZURE_VISION_ENDPOINT",
-                "Value": "${AZURE_VISION_ENDPOINT}"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:application:environment",
-                "OptionName": "AZURE_VISION_KEY",
-                "Value": "${AZURE_VISION_KEY}"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:application:environment",
-                "OptionName": "ALLOWED_ORIGINS",
-                "Value": "https://harryhome1.github.io,http://localhost:8006"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:environment",
-                "OptionName": "EnvironmentType",
-                "Value": "SingleInstance"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:application:environment",
-                "OptionName": "USE_AZURE_OCR",
-                "Value": "True"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:environment:process:default",
-                "OptionName": "HealthCheckPath",
-                "Value": "/api/health"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:environment:process:default",
-                "OptionName": "HealthCheckTimeout",
-                "Value": "30"
-              },
-              {
-                "Namespace": "aws:elasticbeanstalk:environment:process:default",
-                "OptionName": "MatcherHTTPCode",
-                "Value": "200"
-              }
-            ]
-            EOF
-            
-            # Validate the JSON file
-            echo "Validating environment configuration file..."
-            if ! jq empty eb-options-temp.json; then
-              echo "Error: Invalid JSON in eb-options-temp.json"
-              cat eb-options-temp.json
-              exit 1
-            fi
-            echo "Environment configuration file is valid"
             
             # Create the environment
             echo "Creating Elastic Beanstalk environment (this may take 5-10 minutes)..."
