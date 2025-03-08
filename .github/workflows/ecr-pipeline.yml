@@ -1,0 +1,78 @@
+name: Build and Push to ECR
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'Dockerfile'
+      - 'requirements.txt'
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: aushadhi-backend
+          IMAGE_TAG: ${{ github.sha }}
+          LATEST_TAG: latest
+        run: |
+          # Build Docker image
+          echo "Building Docker image..."
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG .
+          
+          # Push Docker image with commit SHA tag
+          echo "Pushing image with commit SHA tag: $IMAGE_TAG"
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          # Push Docker image with latest tag
+          echo "Pushing image with latest tag"
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG
+          
+          # Output the image URI for reference
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Successfully pushed image to ECR: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+      
+      - name: Export Image Details
+        id: image-details
+        run: |
+          echo "ECR_REPOSITORY=${{ steps.login-ecr.outputs.registry }}/aushadhi-backend" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_OUTPUT
+          
+      - name: Print Docker Run Instructions
+        run: |
+          echo "=============================================="
+          echo "DOCKER RUN INSTRUCTIONS FOR EC2 INSTANCE:"
+          echo "=============================================="
+          echo "1. SSH into your EC2 instance"
+          echo "2. Configure AWS credentials for ECR access"
+          echo "3. Login to ECR:"
+          echo "   aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}"
+          echo "4. Pull the Docker image:"
+          echo "   docker pull ${{ steps.login-ecr.outputs.registry }}/aushadhi-backend:${{ github.sha }}"
+          echo "   or"
+          echo "   docker pull ${{ steps.login-ecr.outputs.registry }}/aushadhi-backend:latest"
+          echo "5. Run the container:"
+          echo "   docker run -d -p 8007:8007 \\"
+          echo "     -e AZURE_VISION_ENDPOINT='https://aushadhiai-computervision.cognitiveservices.azure.com/' \\"
+          echo "     -e AZURE_VISION_KEY='1BUzJ4Dr444av4ikJ3X3qfb9bpFeKodrjCNrBtUEALstuNIqecUJJQQJ99BCACYeBjFXJ3w3AAAFACOGxnpP' \\"
+          echo "     -e ALLOWED_ORIGINS='https://harryhome1.github.io/INTRO-AushadhiAI,http://localhost:8006' \\"
+          echo "     ${{ steps.login-ecr.outputs.registry }}/aushadhi-backend:latest"
+          echo "==============================================" 
