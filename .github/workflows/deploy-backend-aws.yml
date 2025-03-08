@@ -68,15 +68,30 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "Image successfully pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           
+      - name: Process secrets for JSON
+        id: process-secrets
+        run: |
+          # Process secrets to clean any newlines or control characters
+          AZURE_ENDPOINT="${{ secrets.AZURE_VISION_ENDPOINT }}"
+          AZURE_KEY="${{ secrets.AZURE_VISION_KEY }}"
+          
+          # Remove any newlines and control characters
+          AZURE_ENDPOINT=$(echo "$AZURE_ENDPOINT" | tr -d '\n\r')
+          AZURE_KEY=$(echo "$AZURE_KEY" | tr -d '\n\r')
+          
+          # Export for next steps
+          echo "azure_endpoint=$AZURE_ENDPOINT" >> $GITHUB_OUTPUT
+          echo "azure_key=$AZURE_KEY" >> $GITHUB_OUTPUT
+          
       - name: Create Dockerrun.aws.json
         env:
-          AZURE_VISION_ENDPOINT: ${{ secrets.AZURE_VISION_ENDPOINT }}
-          AZURE_VISION_KEY: ${{ secrets.AZURE_VISION_KEY }}
+          AZURE_VISION_ENDPOINT: ${{ steps.process-secrets.outputs.azure_endpoint }}
+          AZURE_VISION_KEY: ${{ steps.process-secrets.outputs.azure_key }}
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           echo "Creating Dockerrun.aws.json..."
-          # Create the Dockerrun.aws.json file with proper environment variable expansion
+          # Create the Dockerrun.aws.json file with clean environment variables
           cat > Dockerrun.aws.json << EOF
           {
             "AWSEBDockerrunVersion": "1",
@@ -119,6 +134,7 @@ jobs:
           
           # Validate the JSON file
           echo "Validating Dockerrun.aws.json..."
+          cat Dockerrun.aws.json
           if ! jq empty Dockerrun.aws.json; then
             echo "Error: Invalid JSON in Dockerrun.aws.json"
             cat Dockerrun.aws.json
@@ -168,8 +184,26 @@ jobs:
             echo "profile_created=false" >> $GITHUB_OUTPUT
           fi
           
+      - name: Process secrets for environment
+        id: env-secrets
+        run: |
+          # Process secrets for environment options file
+          AZURE_ENDPOINT="${{ secrets.AZURE_VISION_ENDPOINT }}"
+          AZURE_KEY="${{ secrets.AZURE_VISION_KEY }}"
+          
+          # Remove any newlines and control characters
+          AZURE_ENDPOINT=$(echo "$AZURE_ENDPOINT" | tr -d '\n\r')
+          AZURE_KEY=$(echo "$AZURE_KEY" | tr -d '\n\r')
+          
+          # Export for next steps
+          echo "azure_endpoint=$AZURE_ENDPOINT" >> $GITHUB_OUTPUT
+          echo "azure_key=$AZURE_KEY" >> $GITHUB_OUTPUT
+          
       - name: Check if Elastic Beanstalk environment exists
         id: check-env
+        env:
+          AZURE_VISION_ENDPOINT: ${{ steps.env-secrets.outputs.azure_endpoint }}
+          AZURE_VISION_KEY: ${{ steps.env-secrets.outputs.azure_key }}
         run: |
           echo "Checking if Elastic Beanstalk environment exists..."
           
