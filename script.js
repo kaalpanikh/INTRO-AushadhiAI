@@ -343,16 +343,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         // Show loading state
-        const resultArea = document.getElementById('resultArea');
-        resultArea.innerHTML = `
-            <div class="loading-container">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-3">Analyzing your prescription...</p>
-            </div>
-        `;
-        resultArea.style.display = 'block';
+        loader.style.display = 'block';
+        uploadButton.disabled = true;
         
         // Create form data for file upload
         const formData = new FormData();
@@ -369,6 +361,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.log('API response received, status:', response.status);
             const data = await response.json();
             
+            // Hide loader
+            loader.style.display = 'none';
+            
             // Special handling for debug information from our enhanced backend
             if (data.debug_info) {
                 console.error('Debug info from server:', data.debug_info);
@@ -380,7 +375,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 // Special handling for HEIC format errors
                 if (data.error.includes('HEIC') || data.error.includes('iPhone')) {
-                    resultArea.innerHTML = `
+                    medicationsContainer.innerHTML = `
                         <div class="error-container">
                             <div class="alert alert-warning">
                                 <h4><i class="fas fa-exclamation-circle"></i> iPhone Image Format Issue</h4>
@@ -397,7 +392,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     `;
                 } else {
                     // Generic error
-                    resultArea.innerHTML = `
+                    medicationsContainer.innerHTML = `
                         <div class="error-container">
                             <div class="alert alert-danger">
                                 <h4><i class="fas fa-exclamation-triangle"></i> Analysis Failed</h4>
@@ -407,6 +402,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                         </div>
                     `;
                 }
+                // Show the results container even for errors
+                resultsContainer.style.display = 'block';
                 return;
             }
             
@@ -415,7 +412,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             displayResults(data);
         } catch (error) {
             console.error('Error during API request:', error);
-            resultArea.innerHTML = `
+            // Hide loader
+            loader.style.display = 'none';
+            
+            medicationsContainer.innerHTML = `
                 <div class="error-container">
                     <div class="alert alert-danger">
                         <h4><i class="fas fa-exclamation-triangle"></i> Connection Error</h4>
@@ -424,6 +424,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                     </div>
                 </div>
             `;
+            // Show the results container even for errors
+            resultsContainer.style.display = 'block';
+            // Re-enable the button so user can try again
+            uploadButton.disabled = false;
         }
     }
 
