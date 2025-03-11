@@ -7,43 +7,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        // API Configuration - Updated for production
-        const API_URL = 'https://aiapi.nikhilmishra.live';
-        
-        // Previous configuration
-        // const API_URL = 'http://localhost:8007';
-        // const API_URL = 'https://aushadhi-backend.azurewebsites.net'; 
-
-        // Quick test to verify backend connection
-        window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                console.log('Attempting to connect to backend...');
-                const response = await fetch(`${API_URL}/api/health`);
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('✅ Backend connection successful!', data);
-                    
-                    // Also check Azure connection
-                    try {
-                        const azureResponse = await fetch(`${API_URL}/api/check-azure`);
-                        if (azureResponse.ok) {
-                            const azureData = await azureResponse.json();
-                            console.log('✅ Azure Vision connection successful!', azureData);
-                        } else {
-                            console.error('❌ Azure Vision returned error:', await azureResponse.text());
-                        }
-                    } catch (azureError) {
-                        console.error('❌ Azure Vision connection failed:', azureError);
-                    }
-                } else {
-                    console.error('❌ Backend returned error:', await response.text());
-                }
-            } catch (error) {
-                console.error('❌ Backend connection failed:', error);
-            }
-        });
-    </script>
+    <!-- Removed duplicate API_URL definition - now only defined in script.js -->
 </head>
 <body>
     <header class="header">

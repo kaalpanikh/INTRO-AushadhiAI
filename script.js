@@ -1,42 +1,113 @@
 document.addEventListener('DOMContentLoaded', async function() {
     // === Configuration ===
-    // API Configuration - Updated for production
-    const API_URL = 'https://aiapi.nikhilmishra.live';
-    
-    // Previous configuration
-    // const API_URL = 'http://localhost:8007';
-    // const API_URL = 'https://aushadhi-backend.azurewebsites.net';
-    
-    // Create a global variable to track the current file
-    let currentFile = null;
+    // Hardcoded API URL - always use the remote endpoint
+    const API_URL = 'https://aiapi.nikhilmishra.live'; 
     let backendReady = false;
+    let currentFile = null;
+
+    // === Initialize the app ===
+    console.log('AushadhiAI initializing...');
+    initApp();
+
+    // Main initialization function
+    async function initApp() {
+        // Try to connect to backend
+        console.log('Testing backend connection...');
+        try {
+            const pingResponse = await fetch(`${API_URL}/api/ping`, {
+                method: 'GET',
+                mode: 'cors'
+            });
+            
+            if (pingResponse.ok) {
+                console.log('Backend is responsive!');
+                backendReady = true;
+            } else {
+                console.warn('Backend ping failed, analysis functionality may be limited');
+            }
+        } catch (err) {
+            console.error('Error connecting to backend:', err);
+        }
+        
+        // Set up event listeners
+        setupEventListeners();
+    }
 
     // === Test backend connection with a known image ===
     async function testBackendWithSampleImage() {
+        console.log('Testing backend connection');
         try {
-            console.log('Testing backend connection...');
-            const response = await fetch(`${API_URL}/api/health`);
-            if (!response.ok) {
-                console.error('Backend health check failed');
-                showMessage("Backend connection issues detected. Retry might be needed.", "warning");
-                return false;
+            // Simple ping test to see if the API is up
+            const pingResponse = await fetch(`${API_URL}/api/ping`, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-cache',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (pingResponse.ok) {
+                console.log('Backend is reachable via ping');
+                backendReady = true;
+                return true;
             }
             
-            console.log('Backend health check passed');
-            const data = await response.json();
-            console.log('Backend health data:', data);
+            console.log('Ping failed, trying with a test image');
             
-            if (data.status === 'healthy') {
-                console.log('Backend is healthy and ready');
+            // Create a small test image as a Blob (1x1 pixel transparent PNG)
+            const testImageData = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAEtAJFXfWYSgAAAABJRU5ErkJggg==';
+            const testImageBlob = await (await fetch(`data:image/png;base64,${testImageData}`)).blob();
+            
+            // Create a test FormData object with the image
+            const formData = new FormData();
+            formData.append('file', testImageBlob, 'test_image.png');
+            
+            // Send a test request to the API
+            const response = await fetch(`${API_URL}/api/analyze`, {
+                method: 'POST',
+                body: formData,
+                mode: 'cors',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                console.log('Backend connection test successful with test image');
                 backendReady = true;
                 return true;
             } else {
-                console.error('Backend is not healthy:', data);
+                console.error('Backend connection test failed');
                 return false;
             }
         } catch (error) {
-            console.error('Error testing backend:', error);
-            showMessage("Backend connection failed. Retry might be needed.", "warning");
+            console.error('Error testing backend connection:', error);
+            return false;
+        }
+    }
+    
+    // Safely upload the selected file to display a preview
+    async function setupUploadTest() {
+        console.log('Setting up test backend connection');
+        
+        // Try to establish connection to the API
+        try {
+            const testConnection = await fetch(`${API_URL}/api/ping`, {
+                method: 'GET',
+                mode: 'cors',
+            });
+            
+            if (testConnection.ok) {
+                console.log('API connection test successful');
+                backendReady = true;
+                return true;
+            } else {
+                console.error('API connection test failed with status:', testConnection.status);
+                return false;
+            }
+        } catch (error) {
+            console.error('Failed to connect to API:', error);
             return false;
         }
     }
@@ -201,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const analyzeBtn = document.getElementById('analyzeButton');
     if (analyzeBtn) {
         // Initially disable until user selects a file
-        analyzeBtn.disabled = true;
+        analyzeBtn.disabled = currentFile ? false : true;
         
         analyzeBtn.addEventListener('click', async function() {
             console.log('Analyze button clicked');
@@ -213,32 +284,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
             
-            // If backend connection was not established, try to establish it now
-            if (!backendReady) {
-                console.log('Backend not ready, attempting to establish connection...');
-                showMessage("Establishing connection to AI service...", "info");
-                
-                // Try to connect to the backend
-                const connected = await testBackendWithSampleImage();
-                
-                if (!connected) {
-                    console.log('First connection attempt failed, trying again...');
-                    // This explains why it works on second click - the first attempt establishes the connection
-                    setTimeout(async () => {
-                        const retryConnection = await testBackendWithSampleImage();
-                        if (retryConnection) {
-                            console.log('Connection established on retry, proceeding with analysis');
-                            analyzeImage(currentFile);
-                        } else {
-                            showError('Could not connect to the analysis service. Please try again.');
-                        }
-                    }, 500);
-                    return;
-                }
+            // Show the loader while processing
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.display = 'block';
             }
             
-            // Show the loader while processing
-            loader.style.display = 'block';
+            // Disable the button during processing
             analyzeBtn.disabled = true;
             
             // Analyze the current file
@@ -261,11 +313,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log('Handling file:', file.name, file.type, file.size);
         
         // Check if the file is from an iPhone (HEIC format)
-        if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
-            // Our backend now handles HEIC, but let's still show a helpful message
-            showMessage('iPhone image detected. Processing HEIC format...', 'info');
+        const isHeicFormat = file.name.toLowerCase().endsWith('.heic') || 
+                            file.name.toLowerCase().endsWith('.heif');
+        
+        if (isHeicFormat) {
+            // Display warning about potential HEIC format issues
+            showMessage('iPhone HEIC image detected. Our system will attempt to process it.', 'info');
             
-            // Save the file for analysis
+            // Still allow the file to be analyzed (server will try to handle it with special code)
             currentFile = file;
             console.log('HEIC/HEIF file saved as currentFile for analysis');
             
@@ -276,26 +331,35 @@ document.addEventListener('DOMContentLoaded', async function() {
                 uploadPrompt.style.display = 'none';
                 previewContainer.style.display = 'block';
                 
-                // Enable the analyze button (using the correct ID)
+                // Enable the analyze button
                 const analyzeBtn = document.getElementById('analyzeButton');
                 if (analyzeBtn) {
                     analyzeBtn.disabled = false;
+                    console.log('Analyze button enabled for HEIC image');
                 } else {
-                    console.error('Analyze button not found when trying to enable it');
+                    console.error('Analyze button not found when trying to enable it for HEIC image');
                 }
                 
-                // Show helpful iPhone guidance
+                // Add helpful guidance for iPhone users
                 const infoBox = document.createElement('div');
                 infoBox.className = 'info-message';
-                infoBox.innerHTML = '<i class="fas fa-info-circle"></i> Tip: For best results with iPhone images, use the "Most Compatible" option when taking photos.';
+                infoBox.innerHTML = `
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>iPhone Image Tips:</strong> 
+                    <ul style="margin-top: 5px; padding-left: 20px;">
+                        <li>If analysis fails, try changing iPhone camera settings to "Most Compatible"</li>
+                        <li>Alternatively, email this image to yourself and download as JPG</li>
+                    </ul>
+                `;
                 infoBox.style.marginTop = '10px';
-                infoBox.style.padding = '8px';
+                infoBox.style.padding = '10px';
                 infoBox.style.backgroundColor = '#e8f4f8';
                 infoBox.style.borderRadius = '4px';
                 infoBox.style.fontSize = '0.9em';
+                infoBox.style.color = '#0c5460';
                 previewContainer.appendChild(infoBox);
                 
-                console.log('iPhone image preview created successfully');
+                console.log('iPhone image preview created with specific guidance');
             };
             reader.onerror = function(e) {
                 console.error('Error reading iPhone image file:', e);
@@ -308,7 +372,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Check if file is an accepted image type
         if (!file.type.match('image/jpeg') && !file.type.match('image/png') && !file.type.match('image/jpg')) {
             console.error('Invalid file type:', file.type);
-            showError('Please upload a valid image file (JPG, PNG, or HEIC from iPhone).');
+            showError('Please upload a valid image file (JPG, PNG, or HEIC/HEIF from iPhone).');
             return;
         }
         
@@ -319,7 +383,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        // Save the file reference - use the original uncompressed file for best quality
+        // Save the file reference for analysis
         currentFile = file;
         console.log('File saved as currentFile for analysis');
         
@@ -330,11 +394,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             uploadPrompt.style.display = 'none';
             previewContainer.style.display = 'block';
             
-            // Enable the analyze button (using the correct ID)
+            // Enable the analyze button
             const analyzeBtn = document.getElementById('analyzeButton');
             if (analyzeBtn) {
                 analyzeBtn.disabled = false;
-                console.log('Analyze button enabled');
+                console.log('Analyze button enabled for standard image');
             } else {
                 console.error('Analyze button not found when trying to enable it');
             }
@@ -381,71 +445,94 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Submit the file for analysis
     async function analyzeImage(file) {
-        console.log('Starting analysis of file:', file.name);
+        console.log('Starting analysis of file:', file.name, file.type, file.size);
         const resultsContainer = document.getElementById('resultsContainer');
         const medicationsContainer = document.getElementById('medications-container');
         const loader = document.getElementById('loader');
+        const analyzeBtn = document.getElementById('analyzeButton');
         
-        // Ensure we have the required DOM elements
-        if (!resultsContainer || !medicationsContainer) {
-            console.error('Results or medications container not found');
-            showError('Application error: Results container not found. Please refresh the page.');
+        // Check for critical DOM elements
+        if (!resultsContainer) {
+            console.error('Results container not found');
+            showError('Application error: Results container missing. Please refresh the page.');
             if (loader) loader.style.display = 'none';
+            if (analyzeBtn) analyzeBtn.disabled = false;
             return;
         }
         
-        // Get the analyze button for state management
-        const analyzeBtn = document.getElementById('analyzeButton');
+        if (!medicationsContainer) {
+            console.error('Medications container not found');
+            // Create the container if it doesn't exist
+            const newContainer = document.createElement('div');
+            newContainer.id = 'medications-container';
+            newContainer.className = 'medications-container';
+            resultsContainer.appendChild(newContainer);
+            console.log('Created missing medications container');
+        }
         
         try {
-            console.log('Creating form data for API request');
+            // Show loading state
+            if (loader) loader.style.display = 'block';
+            if (analyzeBtn) analyzeBtn.disabled = true;
+            
+            // Create form data
             const formData = new FormData();
             formData.append('file', file);
             
-            // API base URL based on environment
-            const API_URL = window.location.hostname === 'localhost' ? 
-                'http://localhost:8007' : 
-                'https://aiapi.nikhilmishra.live';
+            // Detect iPhone HEIC/HEIF format and warn user about potential issues
+            const isHeicFormat = file.name.toLowerCase().endsWith('.heic') || 
+                                file.name.toLowerCase().endsWith('.heif');
             
-            console.log('Sending API request to:', `${API_URL}/api/analyze`);
+            if (isHeicFormat) {
+                console.log('HEIC/HEIF format detected. This may require special handling on the server.');
+                showMessage('iPhone HEIC format detected. Processing may take longer...', 'info');
+            }
             
-            // Show loading state
-            if (loader) loader.style.display = 'block';
+            console.log(`Sending analysis request to ${API_URL}/api/analyze`);
             
-            // Clear any previous results
-            medicationsContainer.innerHTML = '';
-            
-            // Disable analyze button during analysis
-            if (analyzeBtn) analyzeBtn.disabled = true;
+            // Make API request with explicit CORS and timeout handling
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
             
             const response = await fetch(`${API_URL}/api/analyze`, {
                 method: 'POST',
                 body: formData,
+                mode: 'cors',
+                credentials: 'omit',
+                headers: {
+                    'Accept': 'application/json'
+                },
+                signal: controller.signal
             });
             
-            console.log('Response received, status:', response.status);
+            clearTimeout(timeoutId); // Clear the timeout
             
-            // Hide loader when response is received
+            // Hide loading state
             if (loader) loader.style.display = 'none';
-            
-            // Re-enable analyze button
             if (analyzeBtn) analyzeBtn.disabled = false;
             
-            // Process the response
-            const data = await response.json();
-            console.log('Response data:', data);
+            if (!response.ok) {
+                throw new Error(`Server responded with status ${response.status}: ${response.statusText}`);
+            }
             
-            // Handle API error response
+            // Parse and handle the response
+            const data = await response.json();
+            console.log('Analysis complete, got data:', data);
+            
+            // Handle API error responses
             if (data.error) {
                 console.error('API returned error:', data.error);
                 
-                // Special case for iPhone HEIC format errors
-                if (data.error.includes('format') || file.name.toLowerCase().includes('heic')) {
+                // Format-specific error handling for iPhone images
+                if ((data.error.toLowerCase().includes('format') || 
+                    data.error.toLowerCase().includes('decode') ||
+                    data.error.toLowerCase().includes('heic')) && isHeicFormat) {
+                    
                     medicationsContainer.innerHTML = `
                         <div class="error-container">
                             <div class="alert alert-warning">
                                 <h4><i class="fas fa-exclamation-triangle"></i> iPhone Image Format Issue</h4>
-                                <p>We're having trouble processing this image format (HEIC). This is common with iPhone photos.</p>
+                                <p>Your iPhone photo uses the HEIC format which our system had trouble processing.</p>
                                 <p>Please try one of these options:</p>
                                 <ol>
                                     <li>Change your iPhone camera settings to "Most Compatible" instead of "High Efficiency"</li>
@@ -457,46 +544,61 @@ document.addEventListener('DOMContentLoaded', async function() {
                         </div>
                     `;
                 } else {
-                    // Generic error
+                    // General error handling
                     medicationsContainer.innerHTML = `
                         <div class="error-container">
                             <div class="alert alert-danger">
                                 <h4><i class="fas fa-exclamation-triangle"></i> Analysis Failed</h4>
                                 <p>${data.error}</p>
-                                <p>Please try uploading a clearer image or check your connection.</p>
+                                <p>Please try uploading a clearer image or use a different prescription.</p>
                             </div>
                         </div>
                     `;
                 }
-                // Show the results container even for errors
+                
+                // Always show results container even for errors
                 resultsContainer.style.display = 'block';
                 return;
             }
             
-            // Handle successful API response
-            console.log('Analysis complete, rendering results');
+            // Success - display the results
+            console.log('Analysis successful, displaying results');
             displayResults(data);
             
         } catch (error) {
-            console.error('Error during API request:', error);
+            console.error('Error during analysis:', error);
             
-            // Hide loader
+            // Reset UI state
             if (loader) loader.style.display = 'none';
-            
-            // Re-enable analyze button
             if (analyzeBtn) analyzeBtn.disabled = false;
             
+            // Handle specific error types
+            let errorMessage = 'Failed to connect to the analysis service.';
+            let errorDetails = error.message;
+            
+            if (error.name === 'AbortError') {
+                errorMessage = 'Analysis request timed out after 30 seconds.';
+                errorDetails = 'The server took too long to respond. This could be due to a large image or busy server.';
+            } else if (error.message.includes('NetworkError')) {
+                errorMessage = 'Network error occurred during analysis.';
+                errorDetails = 'Please check your internet connection and try again.';
+            } else if (error.message.includes('CORS')) {
+                errorMessage = 'Cross-origin request blocked.';
+                errorDetails = 'Server security settings prevented the analysis. Try a different browser or connection.';
+            }
+            
+            // Display the error message
             medicationsContainer.innerHTML = `
                 <div class="error-container">
                     <div class="alert alert-danger">
-                        <h4><i class="fas fa-exclamation-triangle"></i> Connection Error</h4>
-                        <p>Failed to connect to the analysis service. Please check your internet connection and try again.</p>
-                        <p class="text-muted small">Technical details: ${error.message}</p>
+                        <h4><i class="fas fa-exclamation-triangle"></i> ${errorMessage}</h4>
+                        <p>${errorDetails}</p>
+                        <p>Please try again or use a different image.</p>
                     </div>
                 </div>
             `;
             
-            // Show the results container even for errors
+            // Show results container
             resultsContainer.style.display = 'block';
         }
     }
@@ -726,5 +828,113 @@ document.addEventListener('DOMContentLoaded', async function() {
         messageDiv.style.borderRadius = '4px';
         uploadArea.appendChild(messageDiv);
         console.log(`${type} message displayed:`, message);
+    }
+
+    // Set up event listeners
+    function setupEventListeners() {
+        console.log('Setting up event listeners...');
+        
+        // Get DOM elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const removeImageBtn = document.getElementById('removeImageBtn');
+        const analyzeBtn = document.getElementById('analyzeButton');
+        const loader = document.getElementById('loader');
+        
+        // Validate required elements
+        if (!uploadArea || !fileInput || !uploadPrompt || !previewContainer || !previewImage || !removeImageBtn) {
+            console.error('Critical DOM elements missing. Application may not function correctly.');
+            return;
+        }
+        
+        // Log found element status
+        console.log('Upload area found:', !!uploadArea);
+        console.log('File input found:', !!fileInput);
+        console.log('Analyze button found:', !!analyzeBtn);
+        
+        // Handle upload area click
+        uploadArea.addEventListener('click', () => {
+            console.log('Upload area clicked');
+            fileInput.click();
+        });
+        
+        // Handle drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            console.log('File dropped');
+            
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+        
+        // Handle file selection
+        fileInput.addEventListener('change', () => {
+            console.log('File selected via input element');
+            if (fileInput.files.length) {
+                handleFile(fileInput.files[0]);
+            }
+        });
+        
+        // Remove selected image
+        removeImageBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent triggering uploadArea click
+            console.log('Remove button clicked, resetting upload');
+            resetUpload();
+        });
+        
+        // Analyze button setup
+        if (analyzeBtn) {
+            console.log('Setting up analyze button click handler');
+            // Initially disable until user selects a file
+            analyzeBtn.disabled = currentFile ? false : true;
+            
+            analyzeBtn.addEventListener('click', async function() {
+                console.log('Analyze button clicked');
+                
+                // Check if we have a file to analyze
+                if (!currentFile) {
+                    console.error('No file selected for analysis');
+                    showError('Please upload a prescription image first.');
+                    return;
+                }
+                
+                // Show the loader while processing
+                if (loader) {
+                    loader.style.display = 'block';
+                }
+                
+                // Disable the button during processing
+                analyzeBtn.disabled = true;
+                
+                // Check for iPhone HEIC/HEIF format
+                const isHeicFormat = currentFile.name.toLowerCase().endsWith('.heic') || 
+                                   currentFile.name.toLowerCase().endsWith('.heif');
+                
+                if (isHeicFormat) {
+                    showMessage("Processing iPhone HEIC format image...", "info");
+                }
+                
+                // Analyze the current file
+                analyzeImage(currentFile);
+            });
+            
+            console.log('Analyze button handler configured successfully');
+        } else {
+            console.error('Analyze button not found - check HTML ID');
+        }
     }
 });
