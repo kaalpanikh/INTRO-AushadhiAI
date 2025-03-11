@@ -12,7 +12,7 @@
   {
     "Namespace": "aws:elasticbeanstalk:application:environment",
     "OptionName": "AZURE_VISION_KEY",
-    "Value": "1BUzJ4Dr444av4ikJ3X3qfb9bpFeKodrjCNrBtUEALstuNIqecUJJQQJ99BCACYeBjFXJ3w3AAAFACOGxnpP"
+    "Value": "[REDACTED]"
   },
   {
     "Namespace": "aws:elasticbeanstalk:application:environment",
@@ -29,4 +29,4 @@
     "OptionName": "ServiceRole",
     "Value": "aws-elasticbeanstalk-service-role"
   }
-] 
+]

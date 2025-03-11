@@ -24,7 +24,7 @@
       "height": 6,
       "properties": {
         "metrics": [
-          [ "AWS/EC2", "CPUUtilization", "InstanceId", "i-012345abcdef" ]
+          [ "AWS/EC2", "CPUUtilization", "InstanceId", "[REDACTED]" ]
         ],
         "period": 300,
         "stat": "Average",
@@ -40,8 +40,8 @@
       "height": 6,
       "properties": {
         "metrics": [
-          [ "AWS/EC2", "NetworkIn", "InstanceId", "i-012345abcdef" ],
-          [ "AWS/EC2", "NetworkOut", "InstanceId", "i-012345abcdef" ]
+          [ "AWS/EC2", "NetworkIn", "InstanceId", "[REDACTED]" ],
+          [ "AWS/EC2", "NetworkOut", "InstanceId", "[REDACTED]" ]
         ],
         "period": 300,
         "stat": "Average",
@@ -50,4 +50,4 @@
       }
     }
   ]
-} 
+}

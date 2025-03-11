@@ -62,6 +62,6 @@
   {
     "Namespace": "aws:elb:listener:443",
     "OptionName": "SSLCertificateId",
-    "Value": "arn:aws:acm:us-east-1:YOUR_ACCOUNT_ID:certificate/YOUR_CERTIFICATE_ID"
+    "Value": "arn:aws:acm:us-east-1:[REDACTED]:[REDACTED]"
   }
-] 
+]
