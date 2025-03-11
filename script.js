@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     // Upload and analyze prescription
-    const analyzeButton = document.getElementById('analyzeButton');
+    const analyzeButton = document.getElementById('uploadButton');
     if (analyzeButton) {
         analyzeButton.addEventListener('click', async function() {
             console.log('Analyze button clicked');
