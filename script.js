@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // === Configuration ===
     // API Configuration - Updated for production
     const API_URL = 'https://aiapi.nikhilmishra.live';
@@ -9,22 +9,35 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Create a global variable to track the current file
     let currentFile = null;
+    let backendReady = false;
 
     // === Test backend connection with a known image ===
     async function testBackendWithSampleImage() {
         try {
-            console.log('Testing backend with sample image...');
+            console.log('Testing backend connection...');
             const response = await fetch(`${API_URL}/api/health`);
             if (!response.ok) {
                 console.error('Backend health check failed');
-                return;
+                showMessage("Backend connection issues detected. Retry might be needed.", "warning");
+                return false;
             }
             
-            // If we have a sample image, we could test it here
-            // For now, we'll just log that the backend is healthy
-            console.log('Backend is healthy, ready to process images');
+            console.log('Backend health check passed');
+            const data = await response.json();
+            console.log('Backend health data:', data);
+            
+            if (data.status === 'healthy') {
+                console.log('Backend is healthy and ready');
+                backendReady = true;
+                return true;
+            } else {
+                console.error('Backend is not healthy:', data);
+                return false;
+            }
         } catch (error) {
             console.error('Error testing backend:', error);
+            showMessage("Backend connection failed. Retry might be needed.", "warning");
+            return false;
         }
     }
     
@@ -186,15 +199,48 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Upload and analyze prescription
-    uploadButton.addEventListener('click', () => {
-        console.log('Analyze button clicked');
-        if (currentFile) {
-            console.log('Current file exists, starting analysis');
+    const analyzeButton = document.getElementById('analyzeButton');
+    if (analyzeButton) {
+        analyzeButton.addEventListener('click', async function() {
+            console.log('Analyze button clicked');
+            
+            // Check if we have a file to analyze
+            if (!currentFile) {
+                console.error('No file selected for analysis');
+                showError('Please upload a prescription image first.');
+                return;
+            }
+            
+            // If backend connection was not established, try to establish it now
+            if (!backendReady) {
+                console.log('Backend not ready, attempting to establish connection...');
+                showMessage("Establishing connection to AI service...", "info");
+                
+                // Try to connect to the backend
+                const connected = await testBackendWithSampleImage();
+                
+                if (!connected) {
+                    console.log('First connection attempt failed, trying again...');
+                    // This explains why it works on second click - the first attempt establishes the connection
+                    setTimeout(async () => {
+                        const retryConnection = await testBackendWithSampleImage();
+                        if (retryConnection) {
+                            console.log('Connection established on retry, proceeding with analysis');
+                            analyzeImage(currentFile);
+                        } else {
+                            showError('Could not connect to the analysis service. Please try again.');
+                        }
+                    }, 500);
+                    return;
+                }
+            }
+            
+            // Analyze the current file
             analyzeImage(currentFile);
-        } else {
-            console.warn('No file selected for analysis');
-        }
-    });
+        });
+    } else {
+        console.error('Analyze button not found');
+    }
 
     // Reset to upload another prescription
     resetButton.addEventListener('click', () => {
