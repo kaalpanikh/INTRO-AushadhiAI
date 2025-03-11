@@ -7,113 +7,131 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // === Initialize the app ===
     console.log('AushadhiAI initializing...');
-    initApp();
-
-    // Main initialization function
-    async function initApp() {
-        // Try to connect to backend
+    
+    // Show loading indicator while app initializes
+    const appLoading = document.getElementById('app-loading');
+    const appContent = document.getElementById('app-content');
+    
+    // Function to complete app initialization
+    function completeInitialization() {
+        if (appLoading) appLoading.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
+        console.log('AushadhiAI initialization complete');
+    }
+    
+    // Set up DOM elements first
+    const elements = validateDOMElements();
+    
+    if (!elements) {
+        showGlobalError('Critical app components missing. Please refresh the page or contact support.');
+        completeInitialization();
+        return;
+    }
+    
+    // Then try to connect to backend
+    await testBackendConnection();
+    
+    // Set up event listeners
+    setupEventListeners(elements);
+    
+    // Complete initialization
+    completeInitialization();
+    
+    // === Test backend connection ===
+    async function testBackendConnection() {
         console.log('Testing backend connection...');
         try {
+            // Simple ping test first
             const pingResponse = await fetch(`${API_URL}/api/ping`, {
                 method: 'GET',
                 mode: 'cors'
             });
             
             if (pingResponse.ok) {
-                console.log('Backend is responsive!');
+                console.log('Backend is responsive via ping!');
                 backendReady = true;
+                return true;
+            }
+            
+            console.log('Ping endpoint not available, trying /api/analyze with empty request');
+            
+            // If ping fails, make a simple HEAD request to analyze endpoint
+            const testResponse = await fetch(`${API_URL}/api/analyze`, {
+                method: 'HEAD',
+                mode: 'cors'
+            });
+            
+            if (testResponse.ok || testResponse.status === 405) { // 405 = Method Not Allowed is fine
+                console.log('Backend API is available');
+                backendReady = true;
+                return true;
             } else {
-                console.warn('Backend ping failed, analysis functionality may be limited');
+                console.warn('Backend API test failed with status:', testResponse.status);
+                showGlobalMessage('⚠️ Backend server may be unavailable. Analysis functionality may be limited.', 'warning');
+                return false;
             }
         } catch (err) {
             console.error('Error connecting to backend:', err);
-        }
-        
-        // Set up event listeners
-        setupEventListeners();
-    }
-
-    // === Test backend connection with a known image ===
-    async function testBackendWithSampleImage() {
-        console.log('Testing backend connection');
-        try {
-            // Simple ping test to see if the API is up
-            const pingResponse = await fetch(`${API_URL}/api/ping`, {
-                method: 'GET',
-                mode: 'cors',
-                cache: 'no-cache',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            
-            if (pingResponse.ok) {
-                console.log('Backend is reachable via ping');
-                backendReady = true;
-                return true;
-            }
-            
-            console.log('Ping failed, trying with a test image');
-            
-            // Create a small test image as a Blob (1x1 pixel transparent PNG)
-            const testImageData = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAEtAJFXfWYSgAAAABJRU5ErkJggg==';
-            const testImageBlob = await (await fetch(`data:image/png;base64,${testImageData}`)).blob();
-            
-            // Create a test FormData object with the image
-            const formData = new FormData();
-            formData.append('file', testImageBlob, 'test_image.png');
-            
-            // Send a test request to the API
-            const response = await fetch(`${API_URL}/api/analyze`, {
-                method: 'POST',
-                body: formData,
-                mode: 'cors',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            
-            if (response.ok) {
-                console.log('Backend connection test successful with test image');
-                backendReady = true;
-                return true;
-            } else {
-                console.error('Backend connection test failed');
-                return false;
-            }
-        } catch (error) {
-            console.error('Error testing backend connection:', error);
+            showGlobalMessage('❌ Could not connect to analysis server. Please try again later.', 'error');
             return false;
         }
     }
     
-    // Safely upload the selected file to display a preview
-    async function setupUploadTest() {
-        console.log('Setting up test backend connection');
-        
-        // Try to establish connection to the API
-        try {
-            const testConnection = await fetch(`${API_URL}/api/ping`, {
-                method: 'GET',
-                mode: 'cors',
-            });
-            
-            if (testConnection.ok) {
-                console.log('API connection test successful');
-                backendReady = true;
-                return true;
-            } else {
-                console.error('API connection test failed with status:', testConnection.status);
-                return false;
-            }
-        } catch (error) {
-            console.error('Failed to connect to API:', error);
-            return false;
-        }
+    // Show global error message (for critical issues)
+    function showGlobalError(message) {
+        console.error('CRITICAL ERROR:', message);
+        // Create an error notification at the top of the page
+        const errorNotification = document.createElement('div');
+        errorNotification.className = 'global-error';
+        errorNotification.style.position = 'fixed';
+        errorNotification.style.top = '0';
+        errorNotification.style.left = '0';
+        errorNotification.style.right = '0';
+        errorNotification.style.padding = '15px';
+        errorNotification.style.backgroundColor = '#f8d7da';
+        errorNotification.style.color = '#721c24';
+        errorNotification.style.textAlign = 'center';
+        errorNotification.style.zIndex = '9999';
+        errorNotification.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+        errorNotification.innerHTML = `<strong>Error:</strong> ${message}`;
+        document.body.appendChild(errorNotification);
     }
     
-    // Run the test on startup
-    testBackendWithSampleImage();
+    // Show global message (for warnings and info)
+    function showGlobalMessage(message, type = 'info') {
+        // Create a notification at the top of the page
+        const notification = document.createElement('div');
+        notification.className = `global-message ${type}`;
+        notification.style.position = 'fixed';
+        notification.style.top = '0';
+        notification.style.left = '0';
+        notification.style.right = '0';
+        notification.style.padding = '10px';
+        notification.style.textAlign = 'center';
+        notification.style.zIndex = '9999';
+        
+        // Set colors based on type
+        if (type === 'warning') {
+            notification.style.backgroundColor = '#fff3cd';
+            notification.style.color = '#856404';
+        } else if (type === 'error') {
+            notification.style.backgroundColor = '#f8d7da';
+            notification.style.color = '#721c24';
+        } else {
+            notification.style.backgroundColor = '#d1ecf1';
+            notification.style.color = '#0c5460';
+        }
+        
+        notification.innerHTML = message;
+        document.body.appendChild(notification);
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => notification.remove(), 500);
+        }, 5000);
+    }
 
     // === Style adjustments ===
     // Fix reset button styling
@@ -125,39 +143,62 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // === Validate DOM elements ===
     function validateDOMElements() {
-        const requiredElements = {
-            'fileInput': document.getElementById('fileInput'),
-            'uploadArea': document.getElementById('uploadArea'),
-            'uploadPrompt': document.getElementById('uploadPrompt'),
-            'previewContainer': document.getElementById('previewContainer'),
-            'previewImage': document.getElementById('previewImage'),
-            'removeImageBtn': document.getElementById('removeImageBtn'),
-            'uploadButton': document.getElementById('uploadButton'),
-            'loader': document.getElementById('loader'),
-            'resultsContainer': document.getElementById('resultsContainer'),
-            'medicationsContainer': document.getElementById('medications-container'),
-            'resetButton': document.getElementById('resetButton')
+        // Create a mapping of expected elements with a more detailed error message for each
+        const elementMap = {
+            'fileInput': { id: 'fileInput', element: null, critical: true, description: 'File upload input field' },
+            'uploadArea': { id: 'uploadArea', element: null, critical: true, description: 'Upload drop area' },
+            'uploadPrompt': { id: 'uploadPrompt', element: null, critical: true, description: 'Upload instructions' },
+            'previewContainer': { id: 'previewContainer', element: null, critical: true, description: 'Image preview container' },
+            'previewImage': { id: 'previewImage', element: null, critical: true, description: 'Image preview element' },
+            'removeImageBtn': { id: 'removeImageBtn', element: null, critical: true, description: 'Remove image button' },
+            'analyzeButton': { id: 'analyzeButton', element: null, critical: true, description: 'Analyze prescription button' },
+            'loader': { id: 'loader', element: null, critical: true, description: 'Loading indicator' },
+            'resultsContainer': { id: 'resultsContainer', element: null, critical: false, description: 'Results display container' },
+            'medications-container': { id: 'medications-container', element: null, critical: false, description: 'Medications list container' },
+            'resetButton': { id: 'resetButton', element: null, critical: false, description: 'Reset button' }
         };
         
-        let allValid = true;
-        for (const [name, element] of Object.entries(requiredElements)) {
-            if (!element) {
-                console.error(`Required DOM element not found: ${name}`);
-                allValid = false;
+        // Retrieve all elements
+        let missingElements = [];
+        let missingCriticalElements = false;
+        
+        // Try to get each element and log results
+        for (const [key, config] of Object.entries(elementMap)) {
+            config.element = document.getElementById(config.id);
+            
+            if (!config.element) {
+                console.error(`Required DOM element not found: ${config.id} (${config.description})`);
+                missingElements.push(config.id);
+                
+                if (config.critical) {
+                    missingCriticalElements = true;
+                }
+            } else {
+                console.log(`Found element: ${config.id}`);
             }
         }
         
-        if (!allValid) {
-            console.error('Some required DOM elements are missing. Check HTML structure.');
-        } else {
-            console.log('All required DOM elements found.');
+        // Handle missing elements
+        if (missingElements.length > 0) {
+            console.error(`Some required DOM elements are missing: ${missingElements.join(', ')}`);
+            
+            if (missingCriticalElements) {
+                // Show user-friendly error for critical missing elements
+                showGlobalError(
+                    `Application initialization failed: Some critical components could not be found. 
+                    Please refresh the page or contact support if the issue persists.`, 
+                    'error'
+                );
+                return false;
+            }
         }
         
-        return allValid;
+        // Return the element map for use in application
+        return elementMap;
     }
     
     // Validate DOM elements on startup
-    validateDOMElements();
+    const elementMap = validateDOMElements();
 
     // === Animation and UI code ===
     // Add fade-in animations for sections
@@ -213,17 +254,17 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // === Prescription Upload and Analysis Functionality ===
     // Get DOM elements
-    const fileInput = document.getElementById('fileInput');
-    const uploadArea = document.getElementById('uploadArea');
-    const uploadPrompt = document.getElementById('uploadPrompt');
-    const previewContainer = document.getElementById('previewContainer');
-    const previewImage = document.getElementById('previewImage');
-    const removeImageBtn = document.getElementById('removeImageBtn');
-    const uploadButton = document.getElementById('uploadButton');
-    const loader = document.getElementById('loader');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const medicationsContainer = document.getElementById('medications-container');
-    const resetButton = document.getElementById('resetButton');
+    const fileInput = elementMap['fileInput'].element;
+    const uploadArea = elementMap['uploadArea'].element;
+    const uploadPrompt = elementMap['uploadPrompt'].element;
+    const previewContainer = elementMap['previewContainer'].element;
+    const previewImage = elementMap['previewImage'].element;
+    const removeImageBtn = elementMap['removeImageBtn'].element;
+    const analyzeButton = elementMap['analyzeButton'].element;
+    const loader = elementMap['loader'].element;
+    const resultsContainer = elementMap['resultsContainer'].element;
+    const medicationsContainer = elementMap['medications-container'].element;
+    const resetButton = elementMap['resetButton'].element;
 
     // Track current file
 
@@ -269,29 +310,27 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     // Make sure analysis functionality works with no file selected initially
-    const analyzeBtn = document.getElementById('analyzeButton');
-    if (analyzeBtn) {
+    if (analyzeButton) {
         // Initially disable until user selects a file
-        analyzeBtn.disabled = currentFile ? false : true;
+        analyzeButton.disabled = currentFile ? false : true;
         
-        analyzeBtn.addEventListener('click', async function() {
+        analyzeButton.addEventListener('click', async function() {
             console.log('Analyze button clicked');
             
             // Check if we have a file to analyze
             if (!currentFile) {
                 console.error('No file selected for analysis');
-                showError('Please upload a prescription image first.');
+                showGlobalError('Please upload a prescription image first.');
                 return;
             }
             
             // Show the loader while processing
-            const loader = document.getElementById('loader');
             if (loader) {
                 loader.style.display = 'block';
             }
             
             // Disable the button during processing
-            analyzeBtn.disabled = true;
+            analyzeButton.disabled = true;
             
             // Analyze the current file
             analyzeImage(currentFile);
@@ -318,7 +357,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         if (isHeicFormat) {
             // Display warning about potential HEIC format issues
-            showMessage('iPhone HEIC image detected. Our system will attempt to process it.', 'info');
+            showGlobalMessage('iPhone HEIC image detected. Our system will attempt to process it.', 'info');
             
             // Still allow the file to be analyzed (server will try to handle it with special code)
             currentFile = file;
@@ -363,7 +402,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             };
             reader.onerror = function(e) {
                 console.error('Error reading iPhone image file:', e);
-                showError('Error reading iPhone image. Please try converting to JPEG or PNG.');
+                showGlobalError('Error reading iPhone image. Please try converting to JPEG or PNG.');
             };
             reader.readAsDataURL(file);
             return;
@@ -372,14 +411,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Check if file is an accepted image type
         if (!file.type.match('image/jpeg') && !file.type.match('image/png') && !file.type.match('image/jpg')) {
             console.error('Invalid file type:', file.type);
-            showError('Please upload a valid image file (JPG, PNG, or HEIC/HEIF from iPhone).');
+            showGlobalError('Please upload a valid image file (JPG, PNG, or HEIC/HEIF from iPhone).');
             return;
         }
         
         // Check file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
             console.error('File too large:', file.size);
-            showError('File is too large. Maximum size is 10MB.');
+            showGlobalError('File is too large. Maximum size is 10MB.');
             return;
         }
         
@@ -412,35 +451,40 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
         reader.onerror = function(e) {
             console.error('Error reading file:', e);
-            showError('Error reading file. Please try again.');
+            showGlobalError('Error reading file. Please try again.');
         };
         reader.readAsDataURL(file);
     }
 
-    // Reset the upload form
+    // Reset the upload process
     function resetUpload() {
-        console.log('Resetting upload form');
+        console.log('Resetting upload process');
         currentFile = null;
-        fileInput.value = '';
-        previewImage.src = '';
-        uploadPrompt.style.display = 'block';
-        previewContainer.style.display = 'none';
         
-        // Remove any information messages
-        const infoMessages = previewContainer.querySelectorAll('.info-message');
-        infoMessages.forEach(msg => msg.remove());
-        
-        // Only disable the button when no file is selected
-        const analyzeBtn = document.getElementById('analyzeButton');
-        if (analyzeBtn && !currentFile) {
-            analyzeBtn.disabled = true;
+        // Reset file input
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput) {
+            fileInput.value = '';
         }
         
-        // Remove error messages
-        const errorMessages = uploadArea.querySelectorAll('.error-message');
-        errorMessages.forEach(msg => msg.remove());
+        // Hide preview, show upload prompt
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const previewContainer = document.getElementById('previewContainer');
+        if (uploadPrompt) uploadPrompt.style.display = 'block';
+        if (previewContainer) previewContainer.style.display = 'none';
         
-        console.log('Upload form reset complete');
+        // Disable the analyze button
+        const analyzeButton = document.getElementById('analyzeButton');
+        if (analyzeButton) {
+            analyzeButton.disabled = true;
+            console.log('Analyze button disabled during reset');
+        }
+        
+        // Hide any existing messages
+        const messageElements = document.querySelectorAll('.info-message, .error-message, .warning-message');
+        messageElements.forEach(el => el.remove());
+        
+        console.log('Upload reset complete');
     }
 
     // Submit the file for analysis
@@ -454,7 +498,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Check for critical DOM elements
         if (!resultsContainer) {
             console.error('Results container not found');
-            showError('Application error: Results container missing. Please refresh the page.');
+            showGlobalError('Application error: Results container missing. Please refresh the page.');
             if (loader) loader.style.display = 'none';
             if (analyzeBtn) analyzeBtn.disabled = false;
             return;
@@ -485,7 +529,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             if (isHeicFormat) {
                 console.log('HEIC/HEIF format detected. This may require special handling on the server.');
-                showMessage('iPhone HEIC format detected. Processing may take longer...', 'info');
+                showGlobalMessage('iPhone HEIC format detected. Processing may take longer...', 'info');
             }
             
             console.log(`Sending analysis request to ${API_URL}/api/analyze`);
@@ -831,18 +875,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Set up event listeners
-    function setupEventListeners() {
+    function setupEventListeners(elements) {
         console.log('Setting up event listeners...');
         
         // Get DOM elements
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const uploadPrompt = document.getElementById('uploadPrompt');
-        const previewContainer = document.getElementById('previewContainer');
-        const previewImage = document.getElementById('previewImage');
-        const removeImageBtn = document.getElementById('removeImageBtn');
-        const analyzeBtn = document.getElementById('analyzeButton');
-        const loader = document.getElementById('loader');
+        const uploadArea = elements['uploadArea'].element;
+        const fileInput = elements['fileInput'].element;
+        const uploadPrompt = elements['uploadPrompt'].element;
+        const previewContainer = elements['previewContainer'].element;
+        const previewImage = elements['previewImage'].element;
+        const removeImageBtn = elements['removeImageBtn'].element;
+        const analyzeButton = elements['analyzeButton'].element;
+        const loader = elements['loader'].element;
         
         // Validate required elements
         if (!uploadArea || !fileInput || !uploadPrompt || !previewContainer || !previewImage || !removeImageBtn) {
@@ -853,7 +897,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Log found element status
         console.log('Upload area found:', !!uploadArea);
         console.log('File input found:', !!fileInput);
-        console.log('Analyze button found:', !!analyzeBtn);
+        console.log('Analyze button found:', !!analyzeButton);
         
         // Handle upload area click
         uploadArea.addEventListener('click', () => {
@@ -897,12 +941,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
         
         // Analyze button setup
-        if (analyzeBtn) {
+        if (analyzeButton) {
             console.log('Setting up analyze button click handler');
             // Initially disable until user selects a file
-            analyzeBtn.disabled = currentFile ? false : true;
+            analyzeButton.disabled = currentFile ? false : true;
             
-            analyzeBtn.addEventListener('click', async function() {
+            analyzeButton.addEventListener('click', async function() {
                 console.log('Analyze button clicked');
                 
                 // Check if we have a file to analyze
@@ -918,7 +962,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
                 
                 // Disable the button during processing
-                analyzeBtn.disabled = true;
+                analyzeButton.disabled = true;
                 
                 // Check for iPhone HEIC/HEIF format
                 const isHeicFormat = currentFile.name.toLowerCase().endsWith('.heic') || 

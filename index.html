@@ -7,160 +7,166 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Removed duplicate API_URL definition - now only defined in script.js -->
+    <!-- All API configuration moved to script.js -->
 </head>
 <body>
-    <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <div class="logo-container">
-                    <h1 class="logo"><span class="devanagari">औषधि</span>AI</h1>
+    <div id="app-loading">
+        <div class="spinner"></div>
+        <p>Loading AushadhiAI...</p>
+    </div>
+    <div id="app-content" style="display: none;">
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo-container">
+                        <h1 class="logo"><span class="devanagari">औषधि</span>AI</h1>
+                    </div>
+                    <h2 class="tagline">Decoding Prescriptions. Empowering Patients.</h2>
+                    <button class="cta-button" id="tryNowButton" onclick="scrollToAppSection()">Try AushadhiAI Now</button>
                 </div>
-                <h2 class="tagline">Decoding Prescriptions. Empowering Patients.</h2>
-                <button class="cta-button" id="tryNowButton" onclick="scrollToAppSection()">Try AushadhiAI Now</button>
+                <div class="hero-image">
+                    <img src="assets/hero-image.svg" alt="Prescription being scanned" class="hero-img">
+                </div>
             </div>
-            <div class="hero-image">
-                <img src="assets/hero-image.svg" alt="Prescription being scanned" class="hero-img">
+            <div class="wave-divider">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                    <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" class="wave-fill"></path>
+                </svg>
             </div>
-        </div>
-        <div class="wave-divider">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
-                <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" class="wave-fill"></path>
-            </svg>
-        </div>
-    </header>
+        </header>
 
-    <section class="features">
-        <div class="container">
-            <h2 class="section-title">Features</h2>
-            <div class="features-container">
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-clipboard-list"></i>
-                    </div>
-                    <h3>Precise Medication Identification</h3>
-                    <p>Our AI accurately recognizes medications from even the most challenging handwritten prescriptions.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-pills"></i>
-                    </div>
-                    <h3>Complete Information</h3>
-                    <p>Get detailed information about uses, side effects, dosage instructions, and potential interactions.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-bolt"></i>
-                    </div>
-                    <h3>Instant Results</h3>
-                    <p>Receive comprehensive prescription details within seconds of uploading your image.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="how-it-works">
-        <div class="container">
-            <h2 class="section-title">How It Works</h2>
-            <div class="steps-container">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-icon">
-                        <i class="fas fa-upload"></i>
-                    </div>
-                    <h3>Upload Your Prescription</h3>
-                    <p>Take a photo or upload an image of your handwritten prescription.</p>
-                </div>
-                <div class="step-arrow">
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-icon">
-                        <i class="fas fa-brain"></i>
-                    </div>
-                    <h3>AI Analysis</h3>
-                    <p>Our advanced AI processes and decodes the handwriting using neural networks.</p>
-                </div>
-                <div class="step-arrow">
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <h3>Receive Clear Information</h3>
-                    <p>Get detailed, easy-to-understand information about your medication.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- New App Section -->
-    <section id="app-section" class="app-section">
-        <div class="container">
-            <h2 class="section-title">Try AushadhiAI</h2>
-            <div class="app-container">
-                <div class="upload-container">
-                    <h3>Upload Your Prescription</h3>
-                    <div class="upload-area" id="uploadArea">
-                        <div class="upload-prompt" id="uploadPrompt">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <p>Drag and drop your prescription image here or click to upload</p>
-                            <p class="small-text">Supports JPG and PNG formats</p>
+        <section class="features">
+            <div class="container">
+                <h2 class="section-title">Features</h2>
+                <div class="features-container">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-clipboard-list"></i>
                         </div>
-                        <div class="preview-container" id="previewContainer" style="display: none;">
-                            <img id="previewImage" src="#" alt="Prescription Preview" />
-                            <button class="remove-button" id="removeImageBtn">
-                                <i class="fas fa-times"></i>
+                        <h3>Precise Medication Identification</h3>
+                        <p>Our AI accurately recognizes medications from even the most challenging handwritten prescriptions.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-pills"></i>
+                        </div>
+                        <h3>Complete Information</h3>
+                        <p>Get detailed information about uses, side effects, dosage instructions, and potential interactions.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <h3>Instant Results</h3>
+                        <p>Receive comprehensive prescription details within seconds of uploading your image.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="how-it-works">
+            <div class="container">
+                <h2 class="section-title">How It Works</h2>
+                <div class="steps-container">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-icon">
+                            <i class="fas fa-upload"></i>
+                        </div>
+                        <h3>Upload Your Prescription</h3>
+                        <p>Take a photo or upload an image of your handwritten prescription.</p>
+                    </div>
+                    <div class="step-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <h3>AI Analysis</h3>
+                        <p>Our advanced AI processes and decodes the handwriting using neural networks.</p>
+                    </div>
+                    <div class="step-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h3>Receive Clear Information</h3>
+                        <p>Get detailed, easy-to-understand information about your medication.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="app-section" class="app-section">
+            <div class="container">
+                <h2 class="section-title">Try AushadhiAI</h2>
+                <div class="app-container">
+                    <div class="upload-container">
+                        <h3>Upload Your Prescription</h3>
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-prompt" id="uploadPrompt">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>Drag and drop your prescription image here or click to upload</p>
+                                <p class="small-text">Supports JPG, PNG and HEIC (iPhone) formats</p>
+                            </div>
+                            <div class="preview-container" id="previewContainer" style="display: none;">
+                                <img id="previewImage" src="#" alt="Prescription Preview" />
+                                <button class="remove-button" id="removeImageBtn">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <input type="file" id="fileInput" accept="image/jpeg, image/png, image/jpg, image/heic" style="display: none;" />
+                        </div>
+                        <div class="upload-actions">
+                            <button class="upload-button" id="analyzeButton">Analyze Prescription</button>
+                            <div class="loader" id="loader" style="display: none;">
+                                <div class="spinner"></div>
+                                <p>Analyzing prescription...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="resultsContainer" class="results-container" style="display: none;">
+                        <h2>Prescription Analysis Results</h2>
+                        
+                        <!-- Medication details will be inserted here -->
+                        <div id="medications-container" class="medications-container"></div>
+                        
+                        <!-- Reset button -->
+                        <div class="action-buttons">
+                            <button id="resetButton" class="btn btn-secondary">
+                                <i class="fas fa-undo"></i> Analyze Another Prescription
                             </button>
                         </div>
-                        <input type="file" id="fileInput" accept="image/jpeg, image/png, image/jpg" style="display: none;" />
-                    </div>
-                    <div class="upload-actions">
-                        <button class="upload-button" id="analyzeButton">Analyze Prescription</button>
-                        <div class="loader" id="loader" style="display: none;">
-                            <div class="spinner"></div>
-                            <p>Analyzing prescription...</p>
-                        </div>
-                    </div>
-                </div>
-                <div id="resultsContainer" class="results-container" style="display: none;">
-                    <h2>Prescription Analysis Results</h2>
-                    
-                    <!-- Medication details will be inserted here -->
-                    <div id="medications-container" class="medications-container"></div>
-                    
-                    <!-- Reset button -->
-                    <div class="action-buttons">
-                        <button id="resetButton" class="btn btn-secondary">
-                            <i class="fas fa-undo"></i> Analyze Another Prescription
-                        </button>
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section class="cta-section">
-        <div class="container">
-            <div class="cta-content">
-                <h2>Ready to decode your prescription?</h2>
-                <p>Our AI-powered tool is here to help you understand your medication details.</p>
-                <button class="cta-button cta-scroll" onclick="scrollToAppSection()">Try AushadhiAI Now</button>
+        <section class="cta-section">
+            <div class="container">
+                <div class="cta-content">
+                    <h2>Ready to decode your prescription?</h2>
+                    <p>Our AI-powered tool is here to help you understand your medication details.</p>
+                    <button class="cta-button cta-scroll" onclick="scrollToAppSection()">Try AushadhiAI Now</button>
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <footer class="footer">
-        <div class="container">
-            <p class="footer-text">"Bringing the ancient wisdom of Aushadhi (medicine) together with modern artificial intelligence"</p>
-            <div class="neural-network-bg"></div>
-        </div>
-    </footer>
+        <footer class="footer">
+            <div class="container">
+                <p class="footer-text">"Bringing the ancient wisdom of Aushadhi (medicine) together with modern artificial intelligence"</p>
+                <div class="neural-network-bg"></div>
+            </div>
+        </footer>
+    </div>
 
     <script>
+        // Simple function to scroll to app section
         function scrollToAppSection() {
             document.getElementById('app-section').scrollIntoView({ behavior: 'smooth' });
         }
