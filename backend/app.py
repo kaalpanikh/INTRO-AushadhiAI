@@ -111,6 +111,7 @@ async def analyze_prescription(file: UploadFile = File(...)):
         from PIL import Image, ImageFilter, ImageEnhance, ImageOps
         import io
         import numpy as np
+        import traceback
         
         # Get file extension to detect image format
         file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
@@ -121,51 +122,81 @@ async def analyze_prescription(file: UploadFile = File(...)):
             print(f"[{request_id}] iPhone HEIC/HEIF format detected. Attempting conversion...")
             try:
                 # First, check if pillow-heif is available
-                import pillow_heif
-                
-                # Process HEIC image
-                heif_file = pillow_heif.read_heif(contents)
-                image = Image.frombytes(
-                    heif_file.mode, 
-                    heif_file.size, 
-                    heif_file.data,
-                    "raw"
-                )
-                print(f"[{request_id}] Successfully converted HEIC image using pillow-heif")
-            except ImportError:
-                # Fallback if pillow-heif is not installed
-                print(f"[{request_id}] pillow-heif not available, trying pyheif")
                 try:
-                    import pyheif
+                    import pillow_heif
+                    print(f"[{request_id}] pillow-heif library is available, version: {pillow_heif.__version__}")
                     
-                    heif_file = pyheif.read(contents)
+                    # Process HEIC image
+                    heif_file = pillow_heif.read_heif(contents)
                     image = Image.frombytes(
                         heif_file.mode, 
                         heif_file.size, 
                         heif_file.data,
-                        "raw",
-                        heif_file.mode,
-                        heif_file.stride,
+                        "raw"
                     )
-                    print(f"[{request_id}] Successfully converted HEIC image using pyheif")
-                except ImportError:
-                    print(f"[{request_id}] HEIC conversion libraries not available")
-                    return {
-                        "error": "iPhone HEIC image format not supported. Please convert your image to JPEG or PNG before uploading.",
-                        "status": "error",
-                        "processing_time_ms": 0,
-                        "medications": [],
-                        "ocr_text": []
-                    }
+                    print(f"[{request_id}] Successfully converted HEIC image using pillow-heif")
+                except ImportError as e:
+                    print(f"[{request_id}] pillow-heif import error: {str(e)}")
+                    # Fallback if pillow-heif is not installed
+                    print(f"[{request_id}] pillow-heif not available, trying pyheif")
+                    try:
+                        import pyheif
+                        print(f"[{request_id}] pyheif library is available")
+                        
+                        heif_file = pyheif.read(contents)
+                        image = Image.frombytes(
+                            heif_file.mode, 
+                            heif_file.size, 
+                            heif_file.data,
+                            "raw",
+                            heif_file.mode,
+                            heif_file.stride,
+                        )
+                        print(f"[{request_id}] Successfully converted HEIC image using pyheif")
+                    except ImportError as e:
+                        print(f"[{request_id}] pyheif import error: {str(e)}")
+                        print(f"[{request_id}] HEIC conversion libraries not available")
+                        return {
+                            "error": "iPhone HEIC image format not supported. Please convert your image to JPEG or PNG before uploading.",
+                            "status": "error",
+                            "processing_time_ms": 0,
+                            "debug_info": "No HEIC support libraries installed on server",
+                            "medications": [],
+                            "ocr_text": []
+                        }
+                    except Exception as e:
+                        print(f"[{request_id}] Error processing HEIC image with pyheif: {str(e)}")
+                        print(f"[{request_id}] Exception details: {traceback.format_exc()}")
+                        return {
+                            "error": f"Failed to process iPhone image using pyheif: {str(e)}. Try converting to JPEG or PNG.",
+                            "status": "error",
+                            "processing_time_ms": 0,
+                            "debug_info": f"pyheif error: {traceback.format_exc()}",
+                            "medications": [],
+                            "ocr_text": []
+                        }
                 except Exception as e:
-                    print(f"[{request_id}] Error processing HEIC image: {str(e)}")
+                    print(f"[{request_id}] Error processing HEIC image with pillow-heif: {str(e)}")
+                    print(f"[{request_id}] Exception details: {traceback.format_exc()}")
                     return {
-                        "error": f"Failed to process iPhone image: {str(e)}. Try converting to JPEG or PNG.",
+                        "error": f"Failed to process iPhone image using pillow-heif: {str(e)}. Try converting to JPEG or PNG.",
                         "status": "error",
                         "processing_time_ms": 0,
+                        "debug_info": f"pillow-heif error: {traceback.format_exc()}",
                         "medications": [],
                         "ocr_text": []
                     }
+            except Exception as e:
+                print(f"[{request_id}] Unexpected error during HEIC processing: {str(e)}")
+                print(f"[{request_id}] Exception details: {traceback.format_exc()}")
+                return {
+                    "error": f"Failed to process iPhone image: {str(e)}. Try converting to JPEG or PNG.",
+                    "status": "error",
+                    "processing_time_ms": 0,
+                    "debug_info": f"General HEIC processing error: {traceback.format_exc()}",
+                    "medications": [],
+                    "ocr_text": []
+                }
         else:
             # Regular image formats
             try:
@@ -173,10 +204,12 @@ async def analyze_prescription(file: UploadFile = File(...)):
                 print(f"[{request_id}] Original image format: {image.format}, size: {image.size}")
             except Exception as e:
                 print(f"[{request_id}] Failed to open image: {str(e)}")
+                print(f"[{request_id}] Exception details: {traceback.format_exc()}")
                 return {
                     "error": f"Failed to process image: {str(e)}. Try converting to a standard format like JPEG or PNG.",
                     "status": "error",
                     "processing_time_ms": 0,
+                    "debug_info": f"PIL open error: {traceback.format_exc()}",
                     "medications": [],
                     "ocr_text": []
                 }

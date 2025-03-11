@@ -288,110 +288,102 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Upload and analyze image
     async function analyzeImage(file) {
-        console.log('Starting analysis of file:', file.name, 'size:', file.size, 'type:', file.type);
+        console.log('Starting prescription analysis');
         
-        // Show loader and hide any previous errors
-        uploadButton.style.display = 'none';
-        loader.style.display = 'flex';
-        const errorMessage = uploadArea.querySelector('.error-message');
-        if (errorMessage) {
-            errorMessage.remove();
+        // If this is an iPhone HEIC/HEIF image and we know the backend might struggle,
+        // offer a client-side pre-conversion option
+        if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+            showMessage("Converting iPhone image format for better compatibility...", "info");
         }
-
+        
+        // Show loading state
+        const resultArea = document.getElementById('resultArea');
+        resultArea.innerHTML = `
+            <div class="loading-container">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3">Analyzing your prescription...</p>
+            </div>
+        `;
+        resultArea.style.display = 'block';
+        
+        // Create form data for file upload
+        const formData = new FormData();
+        formData.append('file', file);
+        
         try {
-            console.log(`Sending image to backend for analysis: ${API_URL}/api/analyze`);
-            
-            // Create form data with the image - using the same approach as demo.html
-            const formData = new FormData();
-            
-            // Use the file directly instead of converting to blob
-            formData.append('file', file);
-            
-            // Send to the backend
+            console.log('Sending API request to analyze prescription');
+            // Use fetch API to send the file to the backend
             const response = await fetch(`${API_URL}/api/analyze`, {
                 method: 'POST',
-                body: formData
+                body: formData,
             });
             
-            console.log('Received response from server:', response.status, response.statusText);
-            
-            if (!response.ok) {
-                throw new Error(`Server error: ${response.status} ${response.statusText}`);
-            }
-            
+            console.log('API response received, status:', response.status);
             const data = await response.json();
-            console.log("Received response data from backend:", data);
             
-            // Enhanced debugging for OCR results
-            if (data.ocr_results) {
-                console.log("OCR Text detected:", data.ocr_results);
+            // Special handling for debug information from our enhanced backend
+            if (data.debug_info) {
+                console.error('Debug info from server:', data.debug_info);
             }
             
-            if (!data.medications || data.medications.length === 0) {
-                console.warn("No medications found in the API response");
-            } else {
-                console.log("Medications found:", data.medications.length);
-                data.medications.forEach((med, i) => {
-                    console.log(`Medication ${i+1}:`, med.name, "Confidence:", med.confidence);
-                });
-            }
-            
-            // Hide loader
-            loader.style.display = 'none';
-            
-            // Display results
-            displayMedicationDetails(data.medications);
-            
-            // Make sure results container is visible
-            if (resultsContainer) {
-                console.log('Explicitly showing results container');
-                resultsContainer.style.display = 'block';
-            } else {
-                console.error('Results container not found in DOM');
-            }
-        } catch (error) {
-            // Hide loader
-            loader.style.display = 'none';
-            uploadButton.style.display = 'block';
-            
-            // Show detailed error message
-            console.error("Analysis error:", error);
-            
-            // More user-friendly error message
-            let errorMessage = 'Failed to analyze prescription.';
-            
-            if (error.message) {
-                if (error.message.includes('timeout') || error.message.includes('NetworkError')) {
-                    errorMessage = 'Connection to the server timed out. Please check your internet connection and try again.';
-                } else if (error.message.includes('500')) {
-                    errorMessage = 'The server encountered an error processing your image. Please try a clearer image.';
-                } else if (error.message.includes('413')) {
-                    errorMessage = 'The image file is too large. Please use a smaller image (under 5MB).';
-                }
-            }
-            
-            showError(errorMessage);
-            
-            // Still show results container with appropriate message
-            const medicationsContainer = document.getElementById('medications-container');
-            if (medicationsContainer) {
-                medicationsContainer.innerHTML = `
-                    <div class="error-container">
-                        <p>There was a problem analyzing your prescription.</p>
-                        <p>${errorMessage}</p>
-                        <p>Please try uploading a clearer image or check your connection.</p>
-                    </div>`;
+            // Check for errors in the response
+            if (data.error) {
+                console.error('Error in API response:', data.error);
                 
-                if (resultsContainer) {
-                    resultsContainer.style.display = 'block';
+                // Special handling for HEIC format errors
+                if (data.error.includes('HEIC') || data.error.includes('iPhone')) {
+                    resultArea.innerHTML = `
+                        <div class="error-container">
+                            <div class="alert alert-warning">
+                                <h4><i class="fas fa-exclamation-circle"></i> iPhone Image Format Issue</h4>
+                                <p>${data.error}</p>
+                                <hr>
+                                <p class="mb-0">Please try one of these options:</p>
+                                <ol>
+                                    <li>On your iPhone, go to Settings > Camera > Formats and select "Most Compatible"</li>
+                                    <li>Email the image to yourself and download it on this device</li>
+                                    <li>Use a different image in JPG or PNG format</li>
+                                </ol>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Generic error
+                    resultArea.innerHTML = `
+                        <div class="error-container">
+                            <div class="alert alert-danger">
+                                <h4><i class="fas fa-exclamation-triangle"></i> Analysis Failed</h4>
+                                <p>${data.error}</p>
+                                <p>Please try uploading a clearer image or check your connection.</p>
+                            </div>
+                        </div>
+                    `;
                 }
+                return;
             }
+            
+            // Handle successful API response
+            console.log('Analysis complete, rendering results');
+            displayResults(data);
+        } catch (error) {
+            console.error('Error during API request:', error);
+            resultArea.innerHTML = `
+                <div class="error-container">
+                    <div class="alert alert-danger">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Connection Error</h4>
+                        <p>Failed to connect to the analysis service. Please check your internet connection and try again.</p>
+                        <p class="text-muted small">Technical details: ${error.message}</p>
+                    </div>
+                </div>
+            `;
         }
     }
 
     // Display medication details
-    function displayMedicationDetails(medications) {
-        console.log('Displaying medication details:', medications);
+    function displayResults(data) {
+        console.log('Displaying medication details:', data);
         const medicationsContainer = document.getElementById('medications-container');
         
         if (!medicationsContainer) {
@@ -401,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         medicationsContainer.innerHTML = '';
 
-        if (!medications || medications.length === 0) {
+        if (!data.medications || data.medications.length === 0) {
             console.log('No medications to display');
             medicationsContainer.innerHTML = `
                 <div class="no-medications">
@@ -453,8 +445,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        console.log(`Displaying ${medications.length} medications`);
-        medications.forEach((medication, index) => {
+        console.log(`Displaying ${data.medications.length} medications`);
+        data.medications.forEach((medication, index) => {
             console.log(`Processing medication ${index + 1}:`, medication.name);
             // Apply defensive programming to avoid undefined values
             const name = medication.name || 'Unknown Medication';
