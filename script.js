@@ -348,10 +348,22 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (analyzeButton) {
             console.log('Adding click event to analyze button');
             
-            analyzeButton.disabled = currentFile ? false : true;
+            // Initial button state
+            analyzeButton.disabled = !currentFile;
             
-            analyzeButton.addEventListener('click', async function() {
-                console.log('Analyze button clicked');
+            // Clear any existing event listeners first to prevent duplication
+            analyzeButton.replaceWith(analyzeButton.cloneNode(true));
+            
+            // Get fresh reference after replacing
+            const freshAnalyzeButton = document.getElementById('analyzeButton');
+            
+            // Add event listener to fresh button
+            freshAnalyzeButton.addEventListener('click', async function(e) {
+                // Prevent default behavior and stop propagation
+                e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('Analyze button clicked - starting analysis process');
                 
                 if (!currentFile) {
                     console.error('No file selected for analysis');
@@ -359,11 +371,20 @@ document.addEventListener('DOMContentLoaded', async function() {
                     return;
                 }
                 
-                analyzeButton.disabled = true;
+                // Show the loader while processing
+                const loader = document.getElementById('loader');
+                if (loader) {
+                    loader.style.display = 'block';
+                }
+                
+                // Disable the button to prevent multiple clicks
+                freshAnalyzeButton.disabled = true;
                 
                 // Proceed with analysis
                 analyzeImage(currentFile);
             });
+            
+            console.log('Analyze button event listener attached successfully');
         }
         
         console.log('Event listeners setup complete');
@@ -544,17 +565,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     async function analyzeImage(file) {
         console.log('Analyzing image:', file.name);
         
-        // Get necessary elements
+        // Get necessary elements - CONSISTENT NAMING CRITICAL HERE
         const loader = document.getElementById('loader');
         const resultsContainer = document.getElementById('resultsContainer');
-        const analyzeBtn = document.getElementById('analyzeButton');
+        const analyzeButton = document.getElementById('analyzeButton'); // Changed from analyzeBtn for consistency
         
         // Check for critical DOM elements
         if (!resultsContainer) {
             console.error('Results container not found');
             showGlobalError('Application error: Results container missing. Please refresh the page.');
             if (loader) loader.style.display = 'none';
-            if (analyzeBtn) analyzeBtn.disabled = false;
+            if (analyzeButton) analyzeButton.disabled = false;
             return;
         }
         
@@ -565,15 +586,27 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             
             // Disable the button during processing
-            analyzeBtn.disabled = true;
+            if (analyzeButton) {
+                analyzeButton.disabled = true;
+                console.log('Analyze button disabled during processing');
+            }
             
             // Create form data
             const formData = new FormData();
             formData.append('file', file);
             
-            // Detect iPhone HEIC/HEIF format and warn user about potential issues
+            // Set a timeout to prevent infinite loading
+            const timeoutDuration = 30000; // 30 seconds
+            let timeoutId = setTimeout(() => {
+                console.error('Analysis request timed out');
+                if (loader) loader.style.display = 'none';
+                if (analyzeButton) analyzeButton.disabled = false;
+                showGlobalError('Analysis request timed out. Please try again.');
+            }, timeoutDuration);
+            
+            // Check if the file is a HEIC format (iPhone)
             const isHeicFormat = file.name.toLowerCase().endsWith('.heic') || 
-                                file.name.toLowerCase().endsWith('.heif');
+                               file.name.toLowerCase().endsWith('.heif');
             
             if (isHeicFormat) {
                 console.log('HEIC/HEIF format detected. This may require special handling on the server.');
@@ -582,21 +615,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             console.log(`Sending analysis request to ${API_URL}/api/analyze`);
             
-            // Make API request with explicit CORS and timeout handling
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-            
+            // Send the request to the backend
             const response = await fetch(`${API_URL}/api/analyze`, {
                 method: 'POST',
                 body: formData,
-                mode: 'cors',
-                credentials: 'omit',
-                headers: {
-                    'Accept': 'application/json'
-                },
-                signal: controller.signal
             });
             
+            // Clear the timeout since we got a response
             clearTimeout(timeoutId); // Clear the timeout
             
             // Hide loading state
@@ -604,64 +629,68 @@ document.addEventListener('DOMContentLoaded', async function() {
                 loader.style.display = 'none';
             }
             
-            if (analyzeBtn) {
-                analyzeBtn.disabled = false;
+            // Re-enable the button
+            if (analyzeButton) {
+                analyzeButton.disabled = false;
+                console.log('Analyze button re-enabled after processing');
             }
             
             if (!response.ok) {
                 throw new Error(`Server responded with status ${response.status}: ${response.statusText}`);
             }
             
-            // Parse and handle the response
             const data = await response.json();
-            console.log('Analysis complete, got data:', data);
+            console.log('Response data:', data);
             
-            // Handle API error responses
+            // Check if the response contains an error
             if (data.error) {
-                console.error('API returned error:', data.error);
+                console.error('Error from backend:', data.error);
                 
-                // Format-specific error handling for iPhone images
+                // If it's likely a HEIC format issue, show a specialized message
                 if ((data.error.toLowerCase().includes('format') || 
                     data.error.toLowerCase().includes('decode') ||
                     data.error.toLowerCase().includes('heic')) && isHeicFormat) {
                     
                     const medicationsContainer = document.getElementById('medications-container');
-                    medicationsContainer.innerHTML = `
-                        <div class="error-container">
-                            <div class="alert alert-warning">
-                                <h4><i class="fas fa-exclamation-triangle"></i> iPhone Image Format Issue</h4>
-                                <p>Your iPhone photo uses the HEIC format which our system had trouble processing.</p>
-                                <p>Please try one of these options:</p>
-                                <ol>
-                                    <li>Change your iPhone camera settings to "Most Compatible" instead of "High Efficiency"</li>
-                                    <li>Convert the image to JPG format before uploading</li>
-                                    <li>Email the image to yourself and download it on this device</li>
-                                    <li>Use a different image in JPG or PNG format</li>
-                                </ol>
+                    if (medicationsContainer) {
+                        medicationsContainer.innerHTML = `
+                            <div class="error-container">
+                                <div class="alert alert-warning">
+                                    <h4>iPhone Image Format Issue</h4>
+                                    <p>We detected a HEIC/HEIF image format from your iPhone. 
+                                    While we try to support this format, sometimes conversion fails.</p>
+                                    <p>Please try one of these options:</p>
+                                    <ol>
+                                        <li>Use your iPhone to convert the image to JPEG before uploading</li>
+                                        <li>Take a screenshot of your prescription and upload that instead</li>
+                                        <li>Use a different device to take and upload the photo</li>
+                                    </ol>
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }
                 } else {
                     // General error handling
                     const medicationsContainer = document.getElementById('medications-container');
-                    medicationsContainer.innerHTML = `
-                        <div class="error-container">
-                            <div class="alert alert-danger">
-                                <h4><i class="fas fa-exclamation-triangle"></i> Analysis Failed</h4>
-                                <p>${data.error}</p>
-                                <p>Please try uploading a clearer image or use a different prescription.</p>
+                    if (medicationsContainer) {
+                        medicationsContainer.innerHTML = `
+                            <div class="error-container">
+                                <div class="alert alert-danger">
+                                    <h4>Analysis Failed</h4>
+                                    <p>${data.error || 'Unable to analyze the prescription image.'}</p>
+                                    <p>Please try again with a clearer image or contact support if the issue persists.</p>
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }
                 }
                 
-                // Always show results container even for errors
+                // Still show the results container
                 resultsContainer.style.display = 'block';
                 return;
             }
             
-            // Success - display the results
-            console.log('Analysis successful, displaying results');
+            // If successful, display the results
             displayResults(data);
             
         } catch (error) {
@@ -672,39 +701,42 @@ document.addEventListener('DOMContentLoaded', async function() {
                 loader.style.display = 'none';
             }
             
-            if (analyzeBtn) {
-                analyzeBtn.disabled = false;
+            // Re-enable the button
+            if (analyzeButton) {
+                analyzeButton.disabled = false;
+                console.log('Analyze button re-enabled after error');
             }
             
             // Handle specific error types
             let errorMessage = 'Failed to connect to the analysis service.';
-            let errorDetails = error.message;
             
-            if (error.name === 'AbortError') {
-                errorMessage = 'Analysis request timed out after 30 seconds.';
-                errorDetails = 'The server took too long to respond. This could be due to a large image or busy server.';
-            } else if (error.message.includes('NetworkError')) {
-                errorMessage = 'Network error occurred during analysis.';
-                errorDetails = 'Please check your internet connection and try again.';
-            } else if (error.message.includes('CORS')) {
-                errorMessage = 'Cross-origin request blocked.';
-                errorDetails = 'Server security settings prevented the analysis. Try a different browser or connection.';
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                errorMessage = 'Network error: Please check your internet connection and try again.';
+            } else if (error.message.includes('timeout')) {
+                errorMessage = 'The request took too long to complete. Please try again.';
+            } else if (error.message.includes('413')) {
+                errorMessage = 'The image file is too large. Please use a smaller image (less than 10MB).';
+            } else {
+                errorMessage = `Error: ${error.message}`;
             }
             
             // Display the error message
             const medicationsContainer = document.getElementById('medications-container');
-            medicationsContainer.innerHTML = `
-                <div class="error-container">
-                    <div class="alert alert-danger">
-                        <h4><i class="fas fa-exclamation-triangle"></i> ${errorMessage}</h4>
-                        <p>${errorDetails}</p>
-                        <p>Please try again or use a different image.</p>
+            if (medicationsContainer) {
+                medicationsContainer.innerHTML = `
+                    <div class="error-container">
+                        <div class="alert alert-danger">
+                            <h4>Analysis Failed</h4>
+                            <p>${errorMessage}</p>
+                            <p>Please try again or contact support if the issue persists.</p>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
             
-            // Show results container
-            resultsContainer.style.display = 'block';
+            if (resultsContainer) {
+                resultsContainer.style.display = 'block';
+            }
         }
     }
 
