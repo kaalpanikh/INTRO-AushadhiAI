@@ -190,4 +190,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 👨‍💻 Team
 
-- Nikhil Mishra - Project Lead & Developer
+- Nikhil Mishra - Hariom Shukla
