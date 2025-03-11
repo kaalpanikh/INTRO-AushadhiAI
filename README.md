@@ -1,7 +1,8 @@
 # AushadhiAI - Intelligent Prescription Analysis
 
 <div align="center">
-  <img src="favicon.ico" alt="AushadhiAI Logo" width="100">
+  <!-- Logo placeholder -->
+  <h1>🔍 AushadhiAI</h1>
   <h3>Decode Prescriptions, Understand Medications</h3>
 </div>
 
