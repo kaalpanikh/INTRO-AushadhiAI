@@ -272,88 +272,125 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Track current file
 
-    // Click on upload area to trigger file input
-    uploadArea.addEventListener('click', () => {
-        console.log('Upload area clicked, triggering file input');
-        fileInput.click();
-    });
-
-    // Handle drag and drop
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('dragover');
-    });
-
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragover');
-    });
-
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
-        console.log('File dropped into upload area');
+    // Set up event listeners
+    function setupEventListeners(elementMap) {
+        console.log('Setting up event listeners...');
         
-        if (e.dataTransfer.files.length) {
-            handleFile(e.dataTransfer.files[0]);
-        }
-    });
-
-    // Handle file selection
-    fileInput.addEventListener('change', () => {
-        console.log('File selected via input element');
-        if (fileInput.files.length) {
-            handleFile(fileInput.files[0]);
-        }
-    });
-
-    // Remove selected image
-    removeImageBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent triggering uploadArea click
-        console.log('Remove button clicked, resetting upload');
-        resetUpload();
-    });
-
-    // Make sure analysis functionality works with no file selected initially
-    if (analyzeButton) {
-        // Initially disable until user selects a file
-        analyzeButton.disabled = currentFile ? false : true;
+        // Get DOM elements
+        const uploadArea = elementMap['uploadArea'].element;
+        const fileInput = elementMap['fileInput'].element;
+        const uploadPrompt = elementMap['uploadPrompt'].element;
+        const previewContainer = elementMap['previewContainer'].element;
+        const previewImage = elementMap['previewImage'].element;
+        const removeImageBtn = elementMap['removeImageBtn'].element;
+        const analyzeButton = elementMap['analyzeButton'].element;
+        const loader = elementMap['loader'].element;
         
-        analyzeButton.addEventListener('click', async function() {
-            console.log('Analyze button clicked');
+        // Validate required elements
+        if (!uploadArea || !fileInput || !uploadPrompt || !previewContainer || !previewImage || !removeImageBtn) {
+            console.error('Some required DOM elements are missing. Check HTML structure.');
+            showGlobalError('Application initialization failed: Upload area components missing.');
+            return false;
+        }
+        
+        console.log('Analyze button found:', !!analyzeButton);
+                
+        // Upload area click to trigger file input
+        if (uploadArea) {
+            uploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
             
-            // Check if we have a file to analyze
-            if (!currentFile) {
-                console.error('No file selected for analysis');
-                showGlobalError('Please upload a prescription image first.');
-                return;
+            // Prevent default behavior for drag events
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            // Handle file drop
+            uploadArea.addEventListener('drop', handleDrop, false);
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
             }
             
-            // Show the loader while processing
-            if (loader) {
-                loader.style.display = 'block';
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length) {
+                    fileInput.files = files;
+                    // Trigger the file input change event
+                    const event = new Event('change');
+                    fileInput.dispatchEvent(event);
+                }
             }
+        }
+        
+        // File input change
+        if (fileInput) {
+            // IMPORTANT: Only add the event listener once
+            fileInput.addEventListener('change', function() {
+                if (fileInput.files.length) {
+                    handleFile(fileInput.files[0]);
+                }
+            });
+        }
+        
+        // Remove image button
+        if (removeImageBtn) {
+            removeImageBtn.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent triggering the upload area click
+                resetUpload();
+            });
+        }
+        
+        // Analyze button
+        if (analyzeButton) {
+            console.log('Adding click event to analyze button');
             
-            // Disable the button during processing
-            analyzeButton.disabled = true;
+            analyzeButton.disabled = currentFile ? false : true;
             
-            // Analyze the current file
-            analyzeImage(currentFile);
-        });
-    } else {
-        console.error('Analyze button not found - check HTML ID');
+            analyzeButton.addEventListener('click', async function() {
+                console.log('Analyze button clicked');
+                
+                if (!currentFile) {
+                    console.error('No file selected for analysis');
+                    showGlobalError('Please upload a prescription image first.');
+                    return;
+                }
+                
+                analyzeButton.disabled = true;
+                
+                // Proceed with analysis
+                analyzeImage(currentFile);
+            });
+        }
+        
+        console.log('Event listeners setup complete');
+        return true;
     }
 
-    // Reset to upload another prescription
-    resetButton.addEventListener('click', () => {
-        console.log('Reset button clicked');
-        resetUpload();
-        // Hide the results container when resetting
-        resultsContainer.style.display = 'none';
-    });
+    // === DO NOT ADD ANY EVENT LISTENERS HERE ===
+    // ALL EVENT LISTENERS ARE NOW SET UP IN setupEventListeners()
+    // Track current file
 
-    // Handle the selected file
+    // Handle file upload process
     function handleFile(file) {
         console.log('Handling file:', file.name, file.type, file.size);
+        
+        // Get references to required DOM elements
+        const fileInput = document.getElementById('fileInput');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const analyzeButton = document.getElementById('analyzeButton');
+        
+        // Check if we have the necessary DOM elements
+        if (!uploadPrompt || !previewContainer || !previewImage || !analyzeButton) {
+            console.error('Missing critical DOM elements for file handling');
+            showGlobalError('Application error: Missing UI components. Please refresh the page.');
+            return;
+        }
         
         // Check if the file is from an iPhone (HEIC format)
         const isHeicFormat = file.name.toLowerCase().endsWith('.heic') || 
@@ -900,113 +937,5 @@ document.addEventListener('DOMContentLoaded', async function() {
         messageDiv.style.borderRadius = '4px';
         uploadArea.appendChild(messageDiv);
         console.log(`${type} message displayed:`, message);
-    }
-
-    // Set up event listeners
-    function setupEventListeners(elementMap) {
-        console.log('Setting up event listeners...');
-        
-        // Get DOM elements
-        const uploadArea = elementMap['uploadArea'].element;
-        const fileInput = elementMap['fileInput'].element;
-        const uploadPrompt = elementMap['uploadPrompt'].element;
-        const previewContainer = elementMap['previewContainer'].element;
-        const previewImage = elementMap['previewImage'].element;
-        const removeImageBtn = elementMap['removeImageBtn'].element;
-        const analyzeButton = elementMap['analyzeButton'].element;
-        const loader = elementMap['loader'].element;
-        
-        // Validate required elements
-        if (!uploadArea || !fileInput || !uploadPrompt || !previewContainer || !previewImage || !removeImageBtn) {
-            console.error('Critical DOM elements missing. Application may not function correctly.');
-            return;
-        }
-        
-        // Log found element status
-        console.log('Upload area found:', !!uploadArea);
-        console.log('File input found:', !!fileInput);
-        console.log('Analyze button found:', !!analyzeButton);
-        
-        // Handle upload area click
-        uploadArea.addEventListener('click', () => {
-            console.log('Upload area clicked');
-            fileInput.click();
-        });
-        
-        // Handle drag and drop
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            console.log('File dropped');
-            
-            if (e.dataTransfer.files.length) {
-                handleFile(e.dataTransfer.files[0]);
-            }
-        });
-        
-        // Handle file selection
-        fileInput.addEventListener('change', () => {
-            console.log('File selected via input element');
-            if (fileInput.files.length) {
-                handleFile(fileInput.files[0]);
-            }
-        });
-        
-        // Remove selected image
-        removeImageBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent triggering uploadArea click
-            console.log('Remove button clicked, resetting upload');
-            resetUpload();
-        });
-        
-        // Analyze button setup
-        if (analyzeButton) {
-            console.log('Setting up analyze button click handler');
-            // Initially disable until user selects a file
-            analyzeButton.disabled = currentFile ? false : true;
-            
-            analyzeButton.addEventListener('click', async function() {
-                console.log('Analyze button clicked');
-                
-                // Check if we have a file to analyze
-                if (!currentFile) {
-                    console.error('No file selected for analysis');
-                    showError('Please upload a prescription image first.');
-                    return;
-                }
-                
-                // Show the loader while processing
-                if (loader) {
-                    loader.style.display = 'block';
-                }
-                
-                // Disable the button during processing
-                analyzeButton.disabled = true;
-                
-                // Check for iPhone HEIC/HEIF format
-                const isHeicFormat = currentFile.name.toLowerCase().endsWith('.heic') || 
-                                   currentFile.name.toLowerCase().endsWith('.heif');
-                
-                if (isHeicFormat) {
-                    showMessage("Processing iPhone HEIC format image...", "info");
-                }
-                
-                // Analyze the current file
-                analyzeImage(currentFile);
-            });
-            
-            console.log('Analyze button handler configured successfully');
-        } else {
-            console.error('Analyze button not found - check HTML ID');
-        }
     }
 });
