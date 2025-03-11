@@ -207,10 +207,49 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle the selected file
     function handleFile(file) {
         console.log('Handling file:', file.name, file.type, file.size);
-        // Check if file is an image
+        
+        // Check if the file is from an iPhone (HEIC format)
+        if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+            // Our backend now handles HEIC, but let's still show a helpful message
+            showMessage('iPhone image detected. Processing HEIC format...', 'info');
+            
+            // Save the file for analysis
+            currentFile = file;
+            console.log('HEIC/HEIF file saved as currentFile for analysis');
+            
+            // Create file preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.src = e.target.result;
+                uploadPrompt.style.display = 'none';
+                previewContainer.style.display = 'block';
+                uploadButton.disabled = false;
+                
+                // Show helpful iPhone guidance
+                const infoBox = document.createElement('div');
+                infoBox.className = 'info-message';
+                infoBox.innerHTML = '<i class="fas fa-info-circle"></i> Tip: For best results with iPhone images, use the "Most Compatible" option when taking photos.';
+                infoBox.style.marginTop = '10px';
+                infoBox.style.padding = '8px';
+                infoBox.style.backgroundColor = '#e8f4f8';
+                infoBox.style.borderRadius = '4px';
+                infoBox.style.fontSize = '0.9em';
+                previewContainer.appendChild(infoBox);
+                
+                console.log('iPhone image preview created successfully');
+            };
+            reader.onerror = function(e) {
+                console.error('Error reading iPhone image file:', e);
+                showError('Error reading iPhone image. Please try converting to JPEG or PNG.');
+            };
+            reader.readAsDataURL(file);
+            return;
+        }
+        
+        // Check if file is an accepted image type
         if (!file.type.match('image/jpeg') && !file.type.match('image/png') && !file.type.match('image/jpg')) {
             console.error('Invalid file type:', file.type);
-            showError('Please upload a valid image file (JPG or PNG).');
+            showError('Please upload a valid image file (JPG, PNG, or HEIC from iPhone).');
             return;
         }
         
@@ -564,24 +603,46 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Show error message
     function showError(message) {
-        console.error('Showing error message:', message);
-        
-        // Remove existing error message if any
-        const existingError = uploadArea.querySelector('.error-message');
-        if (existingError) {
-            existingError.remove();
+        // Remove any existing error message
+        const oldError = uploadArea.querySelector('.error-message');
+        if (oldError) {
+            oldError.remove();
         }
         
-        // Create error message element
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
-        errorDiv.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i>
-            <p>${message}</p>
-        `;
-        
-        // Add error message to upload area
+        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+        errorDiv.style.marginTop = '15px';
+        errorDiv.style.color = '#e74c3c';
+        errorDiv.style.fontWeight = 'bold';
         uploadArea.appendChild(errorDiv);
-        console.log('Error message displayed');
+        console.error('Error displayed:', message);
+    }
+    
+    // Show information message
+    function showMessage(message, type = 'info') {
+        // Remove any existing message
+        const oldMessage = uploadArea.querySelector(`.${type}-message`);
+        if (oldMessage) {
+            oldMessage.remove();
+        }
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `${type}-message`;
+        messageDiv.innerHTML = `<i class="fas fa-info-circle"></i> ${message}`;
+        messageDiv.style.marginTop = '15px';
+        messageDiv.style.padding = '8px';
+        
+        if (type === 'info') {
+            messageDiv.style.color = '#3498db';
+            messageDiv.style.backgroundColor = '#e8f4f8';
+        } else if (type === 'success') {
+            messageDiv.style.color = '#27ae60';
+            messageDiv.style.backgroundColor = '#e8f8ef';
+        }
+        
+        messageDiv.style.borderRadius = '4px';
+        uploadArea.appendChild(messageDiv);
+        console.log(`${type} message displayed:`, message);
     }
 });

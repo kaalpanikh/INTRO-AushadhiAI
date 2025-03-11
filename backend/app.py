@@ -105,15 +105,82 @@ async def analyze_prescription(file: UploadFile = File(...)):
         request_id = str(uuid.uuid4())
         
         # Log the request to help with debugging
-        print(f"[{request_id}] Processing new image upload, size: {len(contents)} bytes")
+        print(f"[{request_id}] Processing new image upload, size: {len(contents)} bytes, filename: {file.filename}")
         
         # Apply advanced image preprocessing to improve OCR accuracy
         from PIL import Image, ImageFilter, ImageEnhance, ImageOps
         import io
         import numpy as np
         
-        # Open image from bytes
-        image = Image.open(io.BytesIO(contents))
+        # Get file extension to detect image format
+        file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+        print(f"[{request_id}] Detected file extension: {file_ext}")
+        
+        # Handle HEIC formats (common on iPhones)
+        if file_ext in ['heic', 'heif']:
+            print(f"[{request_id}] iPhone HEIC/HEIF format detected. Attempting conversion...")
+            try:
+                # First, check if pillow-heif is available
+                import pillow_heif
+                
+                # Process HEIC image
+                heif_file = pillow_heif.read_heif(contents)
+                image = Image.frombytes(
+                    heif_file.mode, 
+                    heif_file.size, 
+                    heif_file.data,
+                    "raw"
+                )
+                print(f"[{request_id}] Successfully converted HEIC image using pillow-heif")
+            except ImportError:
+                # Fallback if pillow-heif is not installed
+                print(f"[{request_id}] pillow-heif not available, trying pyheif")
+                try:
+                    import pyheif
+                    
+                    heif_file = pyheif.read(contents)
+                    image = Image.frombytes(
+                        heif_file.mode, 
+                        heif_file.size, 
+                        heif_file.data,
+                        "raw",
+                        heif_file.mode,
+                        heif_file.stride,
+                    )
+                    print(f"[{request_id}] Successfully converted HEIC image using pyheif")
+                except ImportError:
+                    print(f"[{request_id}] HEIC conversion libraries not available")
+                    return {
+                        "error": "iPhone HEIC image format not supported. Please convert your image to JPEG or PNG before uploading.",
+                        "status": "error",
+                        "processing_time_ms": 0,
+                        "medications": [],
+                        "ocr_text": []
+                    }
+                except Exception as e:
+                    print(f"[{request_id}] Error processing HEIC image: {str(e)}")
+                    return {
+                        "error": f"Failed to process iPhone image: {str(e)}. Try converting to JPEG or PNG.",
+                        "status": "error",
+                        "processing_time_ms": 0,
+                        "medications": [],
+                        "ocr_text": []
+                    }
+        else:
+            # Regular image formats
+            try:
+                image = Image.open(io.BytesIO(contents))
+                print(f"[{request_id}] Original image format: {image.format}, size: {image.size}")
+            except Exception as e:
+                print(f"[{request_id}] Failed to open image: {str(e)}")
+                return {
+                    "error": f"Failed to process image: {str(e)}. Try converting to a standard format like JPEG or PNG.",
+                    "status": "error",
+                    "processing_time_ms": 0,
+                    "medications": [],
+                    "ocr_text": []
+                }
+        
         print(f"[{request_id}] Original image size: {image.size}")
         
         # Convert to grayscale to reduce noise
