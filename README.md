@@ -1,165 +1,192 @@
 # AushadhiAI - Intelligent Prescription Analysis
 
-![AushadhiAI Logo](favicon.ico)
+<div align="center">
+  <img src="favicon.ico" alt="AushadhiAI Logo" width="100">
+  <h3>Decode Prescriptions, Understand Medications</h3>
+</div>
 
-## Overview
+## 🔍 Overview
 
-AushadhiAI is an innovative solution that uses artificial intelligence and Azure Computer Vision to decode doctors' handwritten prescriptions, making medication information accessible and understandable for patients.
+AushadhiAI is an advanced AI-powered solution that decodes doctors' handwritten prescriptions using computer vision and machine learning. The application extracts medication information and presents it in an easy-to-understand format, bridging the knowledge gap between healthcare providers and patients.
 
-## Key Features
+## ✨ Key Features
 
-- **Prescription Image Analysis**: Upload and process prescription images
-- **Azure-Powered OCR**: Extract text from handwritten or printed prescriptions using Azure Computer Vision
-- **Medication Identification**: Automatically identify medications mentioned in prescriptions
-- **Intuitive UI**: Clean, user-friendly interface for easy interaction
-- **Robust Architecture**: Fallback mechanisms ensure functionality even when cloud services are unavailable
+- **Multi-format Image Processing**: Support for JPEG, PNG, and HEIC (iPhone) image formats
+- **Advanced OCR**: Extract text from handwritten prescriptions using Azure Computer Vision
+- **Medication Identification**: Automatically identify medications using ML-based text analysis
+- **Cross-platform Compatibility**: Works across devices including iPhones and Android phones
+- **Responsive Design**: Optimized interface for both desktop and mobile use
+- **Fault Tolerance**: Robust fallback mechanisms when cloud services are unavailable
 
-## Project Status
+## 🏗️ Architecture
 
-### Completed Features
-- Azure Computer Vision integration
-- Prescription image upload and processing
-- OCR text extraction
-- Basic medication identification
-- Demo interface for presentation
-- System diagnostic utilities
-- One-command startup script
+AushadhiAI employs a modern, scalable architecture:
 
-### In Development
-- Detailed medication information (dosage, instructions)
-- User accounts and prescription history
-- Mobile application
-- Pharmacy system integration
-- Multi-language support
+- **Frontend**: HTML5, CSS3, JavaScript with responsive design principles
+- **Backend API**: FastAPI (Python) providing RESTful endpoints for image analysis
+- **Cloud Vision**: Azure Computer Vision API for OCR processing
+- **Medication Service**: Custom NLP algorithms for medication identification
+- **Container Deployment**: Docker containers for consistent development and production environments
+- **Cloud Infrastructure**: AWS EC2 and ECR for reliable, scalable hosting
 
-## Technical Architecture
+## 🚀 Deployment Options
 
-The application consists of these key components:
-
-- **Frontend**: HTML, CSS, JavaScript
-- **Backend API**: FastAPI server providing endpoints for image analysis
-- **Azure Vision Service**: Cloud-based OCR through Azure Computer Vision
-- **Medication Service**: Logic for identifying medications from extracted text
-- **Medication Database**: JSON-based storage of medication information
-
-## Installation
-
-### Prerequisites
-- Python 3.8+
-- Azure Computer Vision API key and endpoint
-- Internet connection for Azure services
-
-### Setup
+### Local Development
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/AushadhiAI.git
-   cd AushadhiAI
+   git clone https://github.com/harryhome1/INTRO-AushadhiAI.git
+   cd INTRO-AushadhiAI
    ```
 
 2. **Install dependencies**:
    ```bash
-   pip install -r backend/requirements.txt
+   pip install -r requirements.txt
    ```
 
 3. **Configure Azure credentials**:
-   Edit `backend/config.py` to include your Azure Computer Vision key and endpoint:
+   Create a `backend/config.py` file with your Azure credentials:
    ```python
-   AZURE_VISION_KEY = "your_azure_vision_key_here"
-   AZURE_VISION_ENDPOINT = "https://your-resource-name.cognitiveservices.azure.com/"
-   USE_AZURE_OCR = True  # Set to False to use simulation mode
+   # Azure Vision Configuration
+   AZURE_VISION_ENDPOINT = "your_endpoint_here"
+   AZURE_VISION_KEY = "your_key_here"
+   
+   # CORS Configuration
+   ALLOWED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
+   
+   # Set to False to use simulated results for development
+   USE_AZURE_OCR = True
    ```
 
-## Running the Application
-
-### Quick Start (Recommended)
-
-Use our one-command startup script:
-```bash
-python start_demo.py
-```
-
-This will:
-- Start the backend server
-- Start the frontend server
-- Open the demo interface in your browser
-- Display connection status
-
-### Manual Startup
-
-1. **Start the backend server**:
+4. **Run the backend server**:
    ```bash
    cd backend
-   python -m uvicorn app:app --host 127.0.0.1 --port 8001
+   uvicorn app:app --host 0.0.0.0 --port 8007 --reload
    ```
 
-2. **Serve the frontend**:
+5. **Serve the frontend** (in a new terminal):
    ```bash
-   # In a new terminal, from the project root
+   # From project root
    python -m http.server 8000
    ```
 
-3. **Access the application**:
-   - Standard interface: http://localhost:8000
-   - Demo interface: http://localhost:8000/demo.html
+6. **Access the application**:
+   Open your browser and navigate to `http://localhost:8000`
 
-## Hackathon Presentation Guide
+### Production Deployment (AWS)
 
-### System Verification
+AushadhiAI is designed for containerized deployment on AWS:
 
-Before your presentation, run our diagnostic tool:
+1. **Build Docker image**:
+   ```bash
+   docker build -t aushadhi-backend:latest .
+   ```
+
+2. **Push to Amazon ECR**:
+   ```bash
+   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 905418100386.dkr.ecr.us-east-1.amazonaws.com
+   docker tag aushadhi-backend:latest 905418100386.dkr.ecr.us-east-1.amazonaws.com/aushadhi-backend:latest
+   docker push 905418100386.dkr.ecr.us-east-1.amazonaws.com/aushadhi-backend:latest
+   ```
+
+3. **Deploy on EC2**:
+   ```bash
+   docker pull 905418100386.dkr.ecr.us-east-1.amazonaws.com/aushadhi-backend:latest
+   docker run -d --name aushadhi-backend -p 8007:8007 905418100386.dkr.ecr.us-east-1.amazonaws.com/aushadhi-backend:latest
+   ```
+
+4. **Configure NGINX** (recommended for production):
+   ```nginx
+   server {
+       listen 80;
+       server_name aiapi.yourdomain.com;
+       
+       location / {
+           proxy_pass http://localhost:8007;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+       }
+   }
+   ```
+
+## 📱 iPhone Support
+
+AushadhiAI includes special handling for iPhone image formats:
+
+1. **HEIC Processing**: Native support for Apple's High Efficiency Image Format
+2. **Format Detection**: Automatic identification of image types
+3. **Conversion Pipeline**: Fallback conversion when needed
+
+Note for iPhone users: For best results, you can set your iPhone to capture in "Most Compatible" format:
+- Go to Settings > Camera > Formats
+- Select "Most Compatible" instead of "High Efficiency"
+
+## 🛠️ Troubleshooting
+
+### Common Issues
+
+1. **Backend Connection Failed**
+   - Ensure the backend server is running on port 8007
+   - Check CORS settings if accessing from a different domain
+   - Verify network connectivity between frontend and backend
+
+2. **Image Processing Errors**
+   - Ensure the image is clear and well-lit
+   - Check that the image size is below 5MB
+   - For iPhone users, try using JPEG format if HEIC processing fails
+
+3. **No Medications Detected**
+   - Verify that the prescription image is legible
+   - Ensure the handwriting is clear
+   - Try using the sample prescription for testing
+
+### Health Check
+
+To verify the backend is functioning properly:
 ```bash
-python system_check.py
+curl https://aiapi.yourdomain.com/api/health
 ```
 
-This will:
-- Verify all dependencies are installed
-- Check Azure connectivity
-- Ensure all required files are present
-- Validate API functionality
-
-### Key Demonstration Points
-
-1. **Azure Integration**: Highlight how Azure Computer Vision provides superior OCR accuracy
-2. **Error Resilience**: Show the fallback mechanism that keeps the application functional even without Azure
-3. **Medication Identification**: Demonstrate the system's ability to recognize medications from prescription text
-4. **User Experience**: Emphasize the clean, intuitive interface designed for accessibility
-
-### Presentation Flow
-
-1. Start with the problem statement: Difficulty in understanding doctors' prescriptions
-2. Explain how AushadhiAI solves this using AI and Azure services
-3. Demo the application with a real prescription image
-4. Discuss the technical architecture and challenges overcome
-5. Share your vision for future enhancements
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| Backend connection failing | Check that port 8001 is available and not blocked by firewall |
-| Azure connectivity issues | Run `python verify_azure.py` to check your credentials |
-| "No medications found" error | Ensure the prescription image is clear and well-lit |
-| Frontend not loading | Verify that the frontend server is running on port 8000 |
-
-For deeper diagnostics, run:
-```bash
-python system_check.py
+Expected response:
+```json
+{"status":"healthy","services":{"ocr":"active","medication_db":"active","api":"active"}}
 ```
 
-## Future Roadmap
+## 📄 API Documentation
 
-- **Enhanced Medication Details**: Include dosage instructions, side effects, and contraindications
-- **User Accounts**: Implement login system for saving prescription history
-- **Mobile Application**: Develop companion mobile apps for Android and iOS
-- **Pharmacy Integration**: Connect with local pharmacies for direct ordering
-- **Analytics Dashboard**: Add statistical analysis of medication history
-- **Multilingual Support**: Expand language capabilities for international use
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Check system health |
+| `/api/analyze` | POST | Analyze prescription image |
 
-## Team
+Example analysis request:
+```bash
+curl -X POST https://aiapi.yourdomain.com/api/analyze \
+  -F "file=@prescription.jpg"
+```
 
-Developed by the AushadhiAI team for the Decode Prescriptions Hackathon 2025.
+## 🔮 Future Development
 
-## License
+- **Enhanced Medication Database**: Expanding coverage to more medications
+- **Dosage Recognition**: Identifying dosage instructions from prescriptions
+- **Drug Interaction Warnings**: Alert users to potential medication interactions
+- **Patient Profiles**: Save prescription history and medication tracking
+- **Multilingual Support**: Add support for prescriptions in multiple languages
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📜 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 👨‍💻 Team
+
+- Nikhil Mishra - Project Lead & Developer
