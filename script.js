@@ -19,20 +19,35 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log('AushadhiAI initialization complete');
     }
     
+    // === Style adjustments ===
+    function applyStyleAdjustments() {
+        // Fix reset button styling
+        const styleResetButton = document.getElementById('resetButton');
+        if (styleResetButton) {
+            styleResetButton.classList.add('btn', 'btn-secondary');
+            styleResetButton.innerHTML = '<i class="fas fa-undo"></i> Analyze Another Prescription';
+        }
+    }
+
+    // This function runs once the DOM is fully loaded
+    // Prevent any other initialization code from running
     // Set up DOM elements first
-    const elements = validateDOMElements();
+    const elementMap = validateDOMElements();
     
-    if (!elements) {
+    if (!elementMap) {
         showGlobalError('Critical app components missing. Please refresh the page or contact support.');
         completeInitialization();
         return;
     }
     
+    // Apply any style adjustments needed
+    applyStyleAdjustments();
+    
     // Then try to connect to backend
     await testBackendConnection();
     
-    // Set up event listeners
-    setupEventListeners(elements);
+    // Set up event listeners only once with validated elements
+    setupEventListeners(elementMap);
     
     // Complete initialization
     completeInitialization();
@@ -133,14 +148,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }, 5000);
     }
 
-    // === Style adjustments ===
-    // Fix reset button styling
-    const styleResetButton = document.getElementById('resetButton');
-    if (styleResetButton) {
-        styleResetButton.classList.add('btn', 'btn-secondary');
-        styleResetButton.innerHTML = '<i class="fas fa-undo"></i> Analyze Another Prescription';
-    }
-
     // === Validate DOM elements ===
     function validateDOMElements() {
         // Create a mapping of expected elements with a more detailed error message for each
@@ -197,9 +204,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         return elementMap;
     }
     
-    // Validate DOM elements on startup
-    const elementMap = validateDOMElements();
-
     // === Animation and UI code ===
     // Add fade-in animations for sections
     const sections = document.querySelectorAll('section, header');
@@ -458,41 +462,54 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Reset the upload process
     function resetUpload() {
-        console.log('Resetting upload process');
+        console.log('Resetting upload form');
+        
+        // Get necessary elements
+        const fileInput = document.getElementById('fileInput');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const analyzeButton = document.getElementById('analyzeButton');
+        
+        // Reset variables
         currentFile = null;
         
         // Reset file input
-        const fileInput = document.getElementById('fileInput');
         if (fileInput) {
             fileInput.value = '';
         }
         
-        // Hide preview, show upload prompt
-        const uploadPrompt = document.getElementById('uploadPrompt');
-        const previewContainer = document.getElementById('previewContainer');
-        if (uploadPrompt) uploadPrompt.style.display = 'block';
-        if (previewContainer) previewContainer.style.display = 'none';
-        
-        // Disable the analyze button
-        const analyzeButton = document.getElementById('analyzeButton');
-        if (analyzeButton) {
-            analyzeButton.disabled = true;
-            console.log('Analyze button disabled during reset');
+        // Reset UI elements
+        if (uploadPrompt) {
+            uploadPrompt.style.display = 'block';
         }
         
-        // Hide any existing messages
-        const messageElements = document.querySelectorAll('.info-message, .error-message, .warning-message');
-        messageElements.forEach(el => el.remove());
+        if (previewContainer) {
+            previewContainer.style.display = 'none';
+        }
         
-        console.log('Upload reset complete');
+        if (previewImage) {
+            previewImage.src = '';
+        }
+        
+        if (analyzeButton) {
+            analyzeButton.disabled = true;
+        }
+        
+        // Hide the results container if it exists
+        const resultsContainer = document.getElementById('resultsContainer');
+        if (resultsContainer) {
+            resultsContainer.style.display = 'none';
+        }
     }
 
     // Submit the file for analysis
     async function analyzeImage(file) {
-        console.log('Starting analysis of file:', file.name, file.type, file.size);
-        const resultsContainer = document.getElementById('resultsContainer');
-        const medicationsContainer = document.getElementById('medications-container');
+        console.log('Analyzing image:', file.name);
+        
+        // Get necessary elements
         const loader = document.getElementById('loader');
+        const resultsContainer = document.getElementById('resultsContainer');
         const analyzeBtn = document.getElementById('analyzeButton');
         
         // Check for critical DOM elements
@@ -504,20 +521,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
-        if (!medicationsContainer) {
-            console.error('Medications container not found');
-            // Create the container if it doesn't exist
-            const newContainer = document.createElement('div');
-            newContainer.id = 'medications-container';
-            newContainer.className = 'medications-container';
-            resultsContainer.appendChild(newContainer);
-            console.log('Created missing medications container');
-        }
-        
         try {
             // Show loading state
-            if (loader) loader.style.display = 'block';
-            if (analyzeBtn) analyzeBtn.disabled = true;
+            if (loader) {
+                loader.style.display = 'block';
+            }
+            
+            // Disable the button during processing
+            analyzeBtn.disabled = true;
             
             // Create form data
             const formData = new FormData();
@@ -552,8 +563,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             clearTimeout(timeoutId); // Clear the timeout
             
             // Hide loading state
-            if (loader) loader.style.display = 'none';
-            if (analyzeBtn) analyzeBtn.disabled = false;
+            if (loader) {
+                loader.style.display = 'none';
+            }
+            
+            if (analyzeBtn) {
+                analyzeBtn.disabled = false;
+            }
             
             if (!response.ok) {
                 throw new Error(`Server responded with status ${response.status}: ${response.statusText}`);
@@ -572,6 +588,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     data.error.toLowerCase().includes('decode') ||
                     data.error.toLowerCase().includes('heic')) && isHeicFormat) {
                     
+                    const medicationsContainer = document.getElementById('medications-container');
                     medicationsContainer.innerHTML = `
                         <div class="error-container">
                             <div class="alert alert-warning">
@@ -589,6 +606,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     `;
                 } else {
                     // General error handling
+                    const medicationsContainer = document.getElementById('medications-container');
                     medicationsContainer.innerHTML = `
                         <div class="error-container">
                             <div class="alert alert-danger">
@@ -613,8 +631,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.error('Error during analysis:', error);
             
             // Reset UI state
-            if (loader) loader.style.display = 'none';
-            if (analyzeBtn) analyzeBtn.disabled = false;
+            if (loader) {
+                loader.style.display = 'none';
+            }
+            
+            if (analyzeBtn) {
+                analyzeBtn.disabled = false;
+            }
             
             // Handle specific error types
             let errorMessage = 'Failed to connect to the analysis service.';
@@ -632,6 +655,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             
             // Display the error message
+            const medicationsContainer = document.getElementById('medications-container');
             medicationsContainer.innerHTML = `
                 <div class="error-container">
                     <div class="alert alert-danger">
@@ -705,6 +729,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.head.appendChild(style);
 
             // Always show results container, even if no medications found
+            const resultsContainer = document.getElementById('resultsContainer');
             if (resultsContainer) {
                 resultsContainer.style.display = 'block';
             }
@@ -826,7 +851,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
         
         console.log('Finished displaying all medications');
-        resultsContainer.style.display = 'block';
+        const resultsContainer = document.getElementById('resultsContainer');
+        if (resultsContainer) {
+            resultsContainer.style.display = 'block';
+        }
     }
 
     // Show error message
@@ -875,18 +903,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Set up event listeners
-    function setupEventListeners(elements) {
+    function setupEventListeners(elementMap) {
         console.log('Setting up event listeners...');
         
         // Get DOM elements
-        const uploadArea = elements['uploadArea'].element;
-        const fileInput = elements['fileInput'].element;
-        const uploadPrompt = elements['uploadPrompt'].element;
-        const previewContainer = elements['previewContainer'].element;
-        const previewImage = elements['previewImage'].element;
-        const removeImageBtn = elements['removeImageBtn'].element;
-        const analyzeButton = elements['analyzeButton'].element;
-        const loader = elements['loader'].element;
+        const uploadArea = elementMap['uploadArea'].element;
+        const fileInput = elementMap['fileInput'].element;
+        const uploadPrompt = elementMap['uploadPrompt'].element;
+        const previewContainer = elementMap['previewContainer'].element;
+        const previewImage = elementMap['previewImage'].element;
+        const removeImageBtn = elementMap['removeImageBtn'].element;
+        const analyzeButton = elementMap['analyzeButton'].element;
+        const loader = elementMap['loader'].element;
         
         // Validate required elements
         if (!uploadArea || !fileInput || !uploadPrompt || !previewContainer || !previewImage || !removeImageBtn) {
