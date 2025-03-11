@@ -197,11 +197,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         resetUpload();
     });
 
-    // Upload and analyze prescription
-    const analyzeButton = document.getElementById('analyzeButton');
-    if (analyzeButton) {
-        console.log('Found analyze button, adding event listener');
-        analyzeButton.addEventListener('click', async function() {
+    // Make sure analysis functionality works with no file selected initially
+    const analyzeBtn = document.getElementById('analyzeButton');
+    if (analyzeBtn) {
+        // Initially disable until user selects a file
+        analyzeBtn.disabled = true;
+        
+        analyzeBtn.addEventListener('click', async function() {
             console.log('Analyze button clicked');
             
             // Check if we have a file to analyze
@@ -234,6 +236,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                     return;
                 }
             }
+            
+            // Show the loader while processing
+            loader.style.display = 'block';
+            analyzeBtn.disabled = true;
             
             // Analyze the current file
             analyzeImage(currentFile);
@@ -269,7 +275,14 @@ document.addEventListener('DOMContentLoaded', async function() {
                 previewImage.src = e.target.result;
                 uploadPrompt.style.display = 'none';
                 previewContainer.style.display = 'block';
-                uploadButton.disabled = false;
+                
+                // Enable the analyze button (using the correct ID)
+                const analyzeBtn = document.getElementById('analyzeButton');
+                if (analyzeBtn) {
+                    analyzeBtn.disabled = false;
+                } else {
+                    console.error('Analyze button not found when trying to enable it');
+                }
                 
                 // Show helpful iPhone guidance
                 const infoBox = document.createElement('div');
@@ -316,7 +329,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             previewImage.src = e.target.result;
             uploadPrompt.style.display = 'none';
             previewContainer.style.display = 'block';
-            uploadButton.disabled = false;
+            
+            // Enable the analyze button (using the correct ID)
+            const analyzeBtn = document.getElementById('analyzeButton');
+            if (analyzeBtn) {
+                analyzeBtn.disabled = false;
+                console.log('Analyze button enabled');
+            } else {
+                console.error('Analyze button not found when trying to enable it');
+            }
             
             // Remove any error message
             const errorMessage = uploadArea.querySelector('.error-message');
@@ -345,10 +366,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         const infoMessages = previewContainer.querySelectorAll('.info-message');
         infoMessages.forEach(msg => msg.remove());
         
-        // Disable analyze button
-        const analyzeButton = document.getElementById('analyzeButton');
-        if (analyzeButton) {
-            analyzeButton.disabled = true;
+        // Only disable the button when no file is selected
+        const analyzeBtn = document.getElementById('analyzeButton');
+        if (analyzeBtn && !currentFile) {
+            analyzeBtn.disabled = true;
         }
         
         // Remove error messages
@@ -358,74 +379,77 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log('Upload form reset complete');
     }
 
-    // Upload and analyze image
+    // Submit the file for analysis
     async function analyzeImage(file) {
-        console.log('Starting prescription analysis with file:', file.name);
+        console.log('Starting analysis of file:', file.name);
+        const resultsContainer = document.getElementById('resultsContainer');
+        const medicationsContainer = document.getElementById('medications-container');
+        const loader = document.getElementById('loader');
         
-        // If this is an iPhone HEIC/HEIF image and we know the backend might struggle,
-        // offer a client-side pre-conversion option
-        if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
-            showMessage("Converting iPhone image format for better compatibility...", "info");
+        // Ensure we have the required DOM elements
+        if (!resultsContainer || !medicationsContainer) {
+            console.error('Results or medications container not found');
+            showError('Application error: Results container not found. Please refresh the page.');
+            if (loader) loader.style.display = 'none';
+            return;
         }
         
-        // Show loading state
-        loader.style.display = 'block';
-        
-        // Disable analyze button during processing
-        const analyzeButton = document.getElementById('analyzeButton');
-        if (analyzeButton) {
-            analyzeButton.disabled = true;
-        }
-        
-        // Create form data for file upload
-        const formData = new FormData();
-        formData.append('file', file);
+        // Get the analyze button for state management
+        const analyzeBtn = document.getElementById('analyzeButton');
         
         try {
-            console.log('Sending API request to analyze prescription');
+            console.log('Creating form data for API request');
+            const formData = new FormData();
+            formData.append('file', file);
             
-            // Use fetch API to send the file to the backend
+            // API base URL based on environment
+            const API_URL = window.location.hostname === 'localhost' ? 
+                'http://localhost:8007' : 
+                'https://aiapi.nikhilmishra.live';
+            
+            console.log('Sending API request to:', `${API_URL}/api/analyze`);
+            
+            // Show loading state
+            if (loader) loader.style.display = 'block';
+            
+            // Clear any previous results
+            medicationsContainer.innerHTML = '';
+            
+            // Disable analyze button during analysis
+            if (analyzeBtn) analyzeBtn.disabled = true;
+            
             const response = await fetch(`${API_URL}/api/analyze`, {
                 method: 'POST',
                 body: formData,
             });
             
-            console.log('API response received, status:', response.status);
+            console.log('Response received, status:', response.status);
             
-            // Hide loader regardless of response
-            loader.style.display = 'none';
+            // Hide loader when response is received
+            if (loader) loader.style.display = 'none';
             
             // Re-enable analyze button
-            if (analyzeButton) {
-                analyzeButton.disabled = false;
-            }
+            if (analyzeBtn) analyzeBtn.disabled = false;
             
-            if (!response.ok) {
-                throw new Error(`Server responded with status: ${response.status}`);
-            }
-            
+            // Process the response
             const data = await response.json();
+            console.log('Response data:', data);
             
-            // Special handling for debug information from our enhanced backend
-            if (data.debug_info) {
-                console.log('Debug info from server:', data.debug_info);
-            }
-            
-            // Check for errors in the response
+            // Handle API error response
             if (data.error) {
-                console.error('Error in API response:', data.error);
+                console.error('API returned error:', data.error);
                 
-                // Special handling for HEIC format errors
-                if (data.error.includes('HEIC') || data.error.includes('iPhone')) {
+                // Special case for iPhone HEIC format errors
+                if (data.error.includes('format') || file.name.toLowerCase().includes('heic')) {
                     medicationsContainer.innerHTML = `
                         <div class="error-container">
                             <div class="alert alert-warning">
-                                <h4><i class="fas fa-exclamation-circle"></i> iPhone Image Format Issue</h4>
-                                <p>${data.error}</p>
-                                <hr>
-                                <p class="mb-0">Please try one of these options:</p>
+                                <h4><i class="fas fa-exclamation-triangle"></i> iPhone Image Format Issue</h4>
+                                <p>We're having trouble processing this image format (HEIC). This is common with iPhone photos.</p>
+                                <p>Please try one of these options:</p>
                                 <ol>
-                                    <li>On your iPhone, go to Settings > Camera > Formats and select "Most Compatible"</li>
+                                    <li>Change your iPhone camera settings to "Most Compatible" instead of "High Efficiency"</li>
+                                    <li>Convert the image to JPG format before uploading</li>
                                     <li>Email the image to yourself and download it on this device</li>
                                     <li>Use a different image in JPG or PNG format</li>
                                 </ol>
@@ -457,12 +481,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.error('Error during API request:', error);
             
             // Hide loader
-            loader.style.display = 'none';
+            if (loader) loader.style.display = 'none';
             
             // Re-enable analyze button
-            if (analyzeButton) {
-                analyzeButton.disabled = false;
-            }
+            if (analyzeBtn) analyzeBtn.disabled = false;
             
             medicationsContainer.innerHTML = `
                 <div class="error-container">
