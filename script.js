@@ -155,7 +155,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     const resetButton = document.getElementById('resetButton');
 
     // Track current file
-    // let currentFile = null; // Removed this line
 
     // Click on upload area to trigger file input
     uploadArea.addEventListener('click', () => {
@@ -199,8 +198,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     // Upload and analyze prescription
-    const analyzeButton = document.getElementById('uploadButton');
+    const analyzeButton = document.getElementById('analyzeButton');
     if (analyzeButton) {
+        console.log('Found analyze button, adding event listener');
         analyzeButton.addEventListener('click', async function() {
             console.log('Analyze button clicked');
             
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             analyzeImage(currentFile);
         });
     } else {
-        console.error('Analyze button not found');
+        console.error('Analyze button not found - check HTML ID');
     }
 
     // Reset to upload another prescription
@@ -332,9 +332,35 @@ document.addEventListener('DOMContentLoaded', async function() {
         reader.readAsDataURL(file);
     }
 
+    // Reset the upload form
+    function resetUpload() {
+        console.log('Resetting upload form');
+        currentFile = null;
+        fileInput.value = '';
+        previewImage.src = '';
+        uploadPrompt.style.display = 'block';
+        previewContainer.style.display = 'none';
+        
+        // Remove any information messages
+        const infoMessages = previewContainer.querySelectorAll('.info-message');
+        infoMessages.forEach(msg => msg.remove());
+        
+        // Disable analyze button
+        const analyzeButton = document.getElementById('analyzeButton');
+        if (analyzeButton) {
+            analyzeButton.disabled = true;
+        }
+        
+        // Remove error messages
+        const errorMessages = uploadArea.querySelectorAll('.error-message');
+        errorMessages.forEach(msg => msg.remove());
+        
+        console.log('Upload form reset complete');
+    }
+
     // Upload and analyze image
     async function analyzeImage(file) {
-        console.log('Starting prescription analysis');
+        console.log('Starting prescription analysis with file:', file.name);
         
         // If this is an iPhone HEIC/HEIF image and we know the backend might struggle,
         // offer a client-side pre-conversion option
@@ -344,7 +370,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Show loading state
         loader.style.display = 'block';
-        uploadButton.disabled = true;
+        
+        // Disable analyze button during processing
+        const analyzeButton = document.getElementById('analyzeButton');
+        if (analyzeButton) {
+            analyzeButton.disabled = true;
+        }
         
         // Create form data for file upload
         const formData = new FormData();
@@ -352,6 +383,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         try {
             console.log('Sending API request to analyze prescription');
+            
             // Use fetch API to send the file to the backend
             const response = await fetch(`${API_URL}/api/analyze`, {
                 method: 'POST',
@@ -359,14 +391,24 @@ document.addEventListener('DOMContentLoaded', async function() {
             });
             
             console.log('API response received, status:', response.status);
-            const data = await response.json();
             
-            // Hide loader
+            // Hide loader regardless of response
             loader.style.display = 'none';
+            
+            // Re-enable analyze button
+            if (analyzeButton) {
+                analyzeButton.disabled = false;
+            }
+            
+            if (!response.ok) {
+                throw new Error(`Server responded with status: ${response.status}`);
+            }
+            
+            const data = await response.json();
             
             // Special handling for debug information from our enhanced backend
             if (data.debug_info) {
-                console.error('Debug info from server:', data.debug_info);
+                console.log('Debug info from server:', data.debug_info);
             }
             
             // Check for errors in the response
@@ -410,10 +452,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Handle successful API response
             console.log('Analysis complete, rendering results');
             displayResults(data);
+            
         } catch (error) {
             console.error('Error during API request:', error);
+            
             // Hide loader
             loader.style.display = 'none';
+            
+            // Re-enable analyze button
+            if (analyzeButton) {
+                analyzeButton.disabled = false;
+            }
             
             medicationsContainer.innerHTML = `
                 <div class="error-container">
@@ -424,10 +473,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                     </div>
                 </div>
             `;
+            
             // Show the results container even for errors
             resultsContainer.style.display = 'block';
-            // Re-enable the button so user can try again
-            uploadButton.disabled = false;
         }
     }
 
@@ -611,36 +659,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         console.log('Finished displaying all medications');
         resultsContainer.style.display = 'block';
-    }
-
-    // Reset upload area
-    function resetUpload() {
-        console.log('Resetting upload area');
-        
-        // Clear file references
-        currentFile = null;
-        fileInput.value = '';
-        
-        // Reset UI elements
-        previewImage.src = '';
-        uploadPrompt.style.display = 'block';
-        previewContainer.style.display = 'none';
-        uploadButton.disabled = true;
-        uploadButton.style.display = 'block';
-        loader.style.display = 'none';
-        
-        // Hide results if they're showing
-        if (resultsContainer) {
-            resultsContainer.style.display = 'none';
-        }
-        
-        // Clear any error messages
-        const existingError = uploadArea.querySelector('.error-message');
-        if (existingError) {
-            existingError.remove();
-        }
-        
-        console.log('Upload area reset complete');
     }
 
     // Show error message
