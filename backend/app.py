@@ -28,7 +28,7 @@ app = FastAPI(title="AushadhiAI API",
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.ALLOWED_ORIGINS,
+    allow_origins=["*"],  # In production, you should list specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
