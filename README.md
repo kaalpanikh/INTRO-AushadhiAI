@@ -8,7 +8,7 @@
 
 ## 🔍 Overview
 
-AushadhiAI is an advanced AI-powered solution that decodes doctors' handwritten prescriptions using computer vision and machine learning. The application extracts medication information and presents it in an easy-to-understand format, bridging the knowledge gap between healthcare providers and patients.
+AushadhiAI is an advanced AI-powered solution that decodes doctors' handwritten prescriptions using computer vision and machine learning. The application extracts medication information and presents it in an easy-to-understand format, bridging the knowledge gap between healthcare providers and patients
 
 ## ✨ Key Features
 
